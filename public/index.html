@@ -231,7 +231,7 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   const ser=serOrd().filter(s=>S.rep==='all'||s.loc===S.rep||s.fmt===S.rep);
   const titolo=S.rep==='all'?'Tutte le serate':locName(S.rep);
   const tot=ser.reduce((a,s)=>add(a,sumSer(s)),{b:0,t:0});
-  const stat=new Map();for(const s of ser)for(const id of Object.keys(s.ris||{})){const r=R(s,id);if(r.b<1&&r.t<1)continue;const o=stat.get(id)||{b:0,t:0,n:0,max:0};o.b+=r.b;o.t+=r.t;o.n++;o.max=Math.max(o.max,r.b);stat.set(id,o)}
+  const stat=new Map();for(const s of ser)for(const id of Object.keys(s.ris||{})){const r=R(s,id);if(r.b<1&&r.t<1)continue;const o=stat.get(id)||{b:0,t:0,n:0,max:0};o.b+=r.b;o.t+=r.t;o.n++;o.max=Math.max(o.max,r.b+r.t);stat.set(id,o)}
   const cls=[...stat].sort((a,b)=>b[1].b-a[1].b||b[1].t-a[1].t);
   const rami=S.pr.filter(p=>p.ruolo!=='pr'&&figli(p.id).length).map(p=>[p,team(p.id,ser)]).filter(x=>x[1].b||x[1].t).sort((a,b)=>b[1].b-a[1].b||b[1].t-a[1].t);
   if(S.repPr&&!stat.has(S.repPr))S.repPr='';const pSel=S.repPr||cls[0]?.[0]||'';
@@ -242,7 +242,7 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   <div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome)).join('')}</div>
   <h3 style="font-size:18px">${esc(titolo)}</h3>
   <div class="kpis"><div class="kpi"><b>${ser.length}</b><span>serate</span></div><div class="kpi"><b>${tot.b}</b><span>biglietti TicketSMS</span></div>
-  <div class="kpi"><b>${tot.t}</b><span>tavoli</span></div><div class="kpi"><b>${ser.length?m1(tot.b/ser.length):'0'}</b><span>biglietti medi a serata</span></div>
+  <div class="kpi"><b>${tot.t}</b><span>tavoli</span></div><div class="kpi"><b>${ser.length?m1((tot.b+tot.t)/ser.length):'0'}</b><span>persone medie a serata (TicketSMS + tavoli)</span></div>
   <div class="kpi"><b>${stat.size}</b><span>PR andati a segno</span></div>
   <div class="kpi"><b>${best?best.v:0}</b><span>biglietti nella serata migliore${best?' · '+fmtD(best.s.data):''}</span></div></div>
   <div class="grid3"><div class="card"><h3>Biglietti per serata</h3>${colChart('b',ser.map(s=>pt(s,sumSer(s).b)))}</div>
@@ -250,8 +250,8 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   <div class="card"><h3>PR andati a segno per serata</h3>${colChart('a',ser.map(s=>pt(s,Object.keys(s.ris||{}).length)))}</div></div>
   <div class="grid2">
   
-  <div class="card"><h3>Classifica PR</h3>${cls.length?`<div class="tbl s"><table><thead><tr><th class="n">#</th><th>PR</th><th class="n">Serate</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">Media bigl.</th><th class="n">Max bigl.</th></tr></thead><tbody>
-  ${cls.map(([id,o],i)=>{const p=byId(id);return `<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${id}">${esc(nome(p))}</button>${p&&p.parent?`<span class="note i">${esc(nome(byId(p.parent)))}</span>`:''}</td><td class="n">${o.n}</td><td class="n"><b>${o.b}</b></td><td class="n">${o.t}</td><td class="n">${m1(o.b/o.n)}</td><td class="n">${o.max}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>
+  <div class="card"><h3>Classifica PR</h3>${cls.length?`<div class="tbl s"><table><thead><tr><th class="n">#</th><th>PR</th><th class="n">Serate</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">Media persone</th><th class="n">Max persone</th></tr></thead><tbody>
+  ${cls.map(([id,o],i)=>{const p=byId(id);return `<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${id}">${esc(nome(p))}</button>${p&&p.parent?`<span class="note i">${esc(nome(byId(p.parent)))}</span>`:''}</td><td class="n">${o.n}</td><td class="n"><b>${o.b}</b></td><td class="n">${o.t}</td><td class="n">${m1((o.b+o.t)/o.n)}</td><td class="n">${o.max}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>
   <div class="card"><h3>Trend di un PR</h3><label>PR<select id="rpP">${cls.map(([id])=>`<option value="${id}" ${id===pSel?'selected':''}>${esc(nome(byId(id)))}</option>`).join('')||'<option>Nessuno</option>'}</select></label>
   <p class="note" style="margin:12px 0 0">Biglietti</p>${colChart('pb',pSel?ser.map(s=>pt(s,R(s,pSel).b)):[])}<p class="note" style="margin:12px 0 0">Tavoli</p>${colChart('pt',pSel?ser.map(s=>pt(s,R(s,pSel).t)):[])}</div></div>
   <div class="card"><h3>Totale per ramo dello staff</h3>${rami.length?`<div class="tbl s"><table><thead><tr><th>Ramo</th><th class="n">Biglietti</th><th class="n">Tavoli</th></tr></thead><tbody>${rami.map(([p,v])=>`<tr><td><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span class="note i">${RUOLI[p.ruolo]} · ${figli(p.id).length} collegati</span></td><td class="n"><b>${v.b}</b></td><td class="n">${v.t}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun ramo con risultati.</p>'}</div>`}
@@ -290,7 +290,7 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   <div class="kpis"><div class="kpi"><b>${conRis}<small style="font-size:14px;color:var(--mute)"> / ${ser.length}</small></b><span>serate con risultati${capo?' (ramo)':''}</span></div>
   <div class="kpi"><b>${tot.b}</b><span>biglietti${capo?' del ramo':''}</span></div><div class="kpi"><b>${tot.t}</b><span>tavoli${capo?' del ramo':''}</span></div>
   ${capo?`<div class="kpi"><b>${segs[0].tot.b} · ${segs[0].tot.t}</b><span>personali (bigl. · tav.)</span></div>`:''}
-  <div class="kpi"><b>${conRis?m1(tot.b/conRis):'0'}</b><span>biglietti medi nelle serate attive</span></div>
+  <div class="kpi"><b>${conRis?m1((tot.b+tot.t)/conRis):'0'}</b><span>persone medie nelle serate attive (TicketSMS + tavoli)</span></div>
   <div class="kpi"><b>${best&&best.v?best.v:0}</b><span>miglior serata${best&&best.v?' · '+fmtD(best.s.data):''}</span></div></div>
   ${legend}
   <div class="grid2"><div class="card"><h3>Biglietti per serata${capo?' · totale e parziali':''}</h3>${chart('qb','b')}</div><div class="card"><h3>Tavoli per serata${capo?' · totale e parziali':''}</h3>${chart('qt','t')}</div></div>
