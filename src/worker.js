@@ -146,7 +146,7 @@ async function classificaPunti(env, me, admin, filtro) {
     if (vede) r.id = p.id; // la classifica mostra solo nome e punti
     righe.push(r);
   }
-  return { imp, filtro, righe };
+  return { imp: admin ? imp : { stagione_inizio: imp.stagione_inizio }, filtro, righe };
 }
 
 /* ---------- API ---------- */
@@ -168,7 +168,8 @@ async function api(req, env, me, path) {
       ver: VER, me, persone: vis ? persone.filter(p => vis.has(p.id)) : persone, locali: loc.results,
       serate: ser.results.map(s => ({ ...s, ris: mappa[s.id] || {} })),
     };
-    out.imp = await impostazioni(env);
+    const imp = await impostazioni(env);
+    out.imp = admin ? imp : { stagione_inizio: imp.stagione_inizio };
     if (admin) out.utenti = (await env.DB.prepare('SELECT * FROM utenti ORDER BY email').all()).results;
     return json(out);
   }
