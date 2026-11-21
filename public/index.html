@@ -181,14 +181,14 @@ const groupChart=(id,data)=>{S.charts[id]={grp:true,...data};return `<div class=
 const tick=m=>{const st=Math.max(1,Math.ceil(m/4/(m>20?5:1))*(m>20?5:1));return {st,top:Math.ceil(Math.max(1,m)/st)*st}};
 function drawGrp(s,g){const W=s.clientWidth,H=s.clientHeight,pts=g.pts,se=g.serie;
   if(!pts.length){s.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">Nessuna serata con risultati</text>`;return}
-  const hasR=se.some(x=>x.ax==='r'),L=32,Rm=hasR?46:6,T=16,B=24,iw=W-L-Rm,ih=H-T-B,n=pts.length,k=se.length;
-  const aL=tick(Math.max(0,...pts.flatMap(p=>se.map((x,j)=>x.ax==='l'?p.v[j]:0)))),aR=tick(Math.max(0,...pts.flatMap(p=>se.map((x,j)=>x.ax==='r'?p.v[j]:0))));
+  // scale differenziate: ogni misura ha la sua scala (la colonna più alta di ogni colore arriva in cima); sulle colonne i valori reali
+  const L=8,Rm=8,T=18,B=24,iw=W-L-Rm,ih=H-T-B,n=pts.length,k=se.length;
+  const tops=se.map((x,j)=>Math.max(1,...pts.map(p=>p.v[j])));
   const bw=iw/n,w=Math.max(3,Math.min(18,bw*.8/k)),every=Math.ceil(n/Math.max(1,Math.floor(iw/(W<520?56:48))));let o='';
-  for(let i=0;i<=4;i++){const y=T+ih-i/4*ih,vl=aL.top*i/4,vr=aR.top*i/4;o+=`<line x1="${L}" x2="${W-Rm}" y1="${y}" y2="${y}" stroke="var(--line)"/>`;
-    if(Number.isInteger(vl))o+=`<text x="${L-6}" y="${y+4}" text-anchor="end">${vl}</text>`;if(hasR)o+=`<text x="${W-Rm+6}" y="${y+4}" style="fill:var(--inc)">${Math.round(vr)}€</text>`}
-  pts.forEach((p,i)=>{const x0=L+i*bw+(bw-k*w)/2;se.forEach((x,j)=>{const top=x.ax==='r'?aR.top:aL.top,v=p.v[j],h=v/top*ih,xx=x0+j*w,y=T+ih-h;
-      o+=`<rect x="${xx}" y="${y}" width="${w-1}" height="${Math.max(h,v?2:0)}" rx="2" fill="${x.c}"><title>${esc(p.t)} · ${x.n}: ${x.ax==='r'?v+' €':v}</title></rect>`;
-      if(v&&w>=16)o+=`<text class="v" x="${xx+w/2-.5}" y="${y-4}" text-anchor="middle" style="font-size:10px">${v}</text>`});
+  for(let i=0;i<=4;i++){const y=T+ih-i/4*ih;o+=`<line x1="${L}" x2="${W-Rm}" y1="${y}" y2="${y}" stroke="var(--line)"/>`}
+  pts.forEach((p,i)=>{const x0=L+i*bw+(bw-k*w)/2;se.forEach((x,j)=>{const v=p.v[j],h=v/tops[j]*ih,xx=x0+j*w,y=T+ih-h;
+      o+=`<rect x="${xx}" y="${y}" width="${w-1}" height="${Math.max(h,v?2:0)}" rx="2" fill="${x.c}"><title>${esc(p.t)} · ${x.n}: ${x.eur?v+' €':v}</title></rect>`;
+      if(v&&w>=10)o+=`<text class="v" x="${xx+w/2-.5}" y="${y-4}" text-anchor="middle" style="font-size:10px">${x.eur?v+'€':v}</text>`});
     if(i%every===0)o+=`<text x="${L+i*bw+bw/2}" y="${H-7}" text-anchor="middle">${esc(p.l)}</text>`});
   s.innerHTML=o}
 const draw=()=>{for(const s of document.querySelectorAll('svg[data-c]')){const cg=S.charts[s.dataset.c];if(cg&&cg.grp){if(s.clientWidth)drawGrp(s,cg);continue}const pts=cg||[];const W=s.clientWidth,H=s.clientHeight;if(!W)continue;
@@ -299,9 +299,9 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   ${classifica(ser,loc,fm)}
   <div class="grid2">
   <div class="card"><h3>Trend di un PR</h3><label>Persona (risultati personali + di tutti quelli sotto di lui)<select id="rpP">${trendL.map(([p])=>`<option value="${p.id}" ${p.id===pSel?'selected':''}>${esc(nome(p))}${p.ruolo!=='pr'?' · '+RUOLI[p.ruolo]:''}</option>`).join('')||'<option>Nessuno</option>'}</select></label>
-  ${(()=>{const hasE=!!(pSel&&trendV.get(pSel)?.e),serie=[{n:'TicketSMS',c:'var(--red)',ax:'l'},{n:'Tavoli',c:'var(--yel)',ax:'l'}].concat(hasE?[{n:'Incasso tavoli',c:'var(--inc)',ax:'r'}]:[]);
+  ${(()=>{const hasE=!!(pSel&&trendV.get(pSel)?.e),serie=[{n:'TicketSMS',c:'var(--red)'},{n:'Tavoli',c:'var(--yel)'}].concat(hasE?[{n:'Incasso tavoli',c:'var(--inc)',eur:true}]:[]);
     const sw=c=>`<i style="width:10px;height:10px;border-radius:3px;background:${c};display:inline-block;margin-right:4px"></i>`;
-    return `<div class="row" style="gap:12px;margin:10px 0 0;font-size:12.5px;color:var(--mute)">${serie.map(x=>`<span>${sw(x.c)}${x.n}${x.ax==='r'?' (€, scala a destra)':''}</span>`).join('')}</div>`
+    return `<div class="row" style="gap:12px;margin:10px 0 0;font-size:12.5px;color:var(--mute)">${serie.map(x=>`<span>${sw(x.c)}${x.n}</span>`).join('')}<span>· ogni colore ha la sua scala: la colonna più alta di ogni colore è il massimo di quella misura; i numeri sono i valori reali</span></div>`
       +groupChart('pg',{serie,pts:pSel?ser.map(s=>{const r=team(pSel,[s]);return {...pt(s,0),v:[r.b,r.t].concat(hasE?[Math.round(r.e/100)]:[])}}):[]})})()}</div></div>
   <div class="card"><h3>Totale per ramo dello staff</h3>${rami.length?`<div class="tbl s"><table><thead><tr><th>Ramo</th><th class="n">Biglietti</th><th class="n">Tavoli</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>${rami.map(([p,v])=>`<tr><td><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span class="note i">${RUOLI[p.ruolo]} · ${figli(p.id).length} collegati</span></td><td class="n"><b>${v.b}</b></td><td class="n">${v.t}</td>${inc?`<td class="n">${v.e?eur(v.e):''}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun ramo con risultati.</p>'}</div>`}
 
