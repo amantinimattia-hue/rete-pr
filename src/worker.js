@@ -44,6 +44,8 @@ async function chiSei(req, env) {
 }
 
 /* ---------- utilità sui dati ---------- */
+const euroCent = v => { const n = parseFloat(String(v ?? '').replace(/\./g, '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0; };
+const misura = v => v === 'incasso' ? 'incasso' : 'persone';
 const etaMin = v => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 6 && n <= 99 ? n : null; };
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 20);
 const txt = (v, n = 200) => (v == null ? '' : String(v)).trim().slice(0, n);
@@ -95,7 +97,7 @@ async function api(req, env, me, path) {
       env.DB.prepare('SELECT * FROM locali').all(), env.DB.prepare('SELECT * FROM serate').all(), env.DB.prepare('SELECT * FROM risultati').all()]);
     const vis = admin ? null : ramo(persone, me.persona_id);
     const mappa = {};
-    for (const r of ris.results) if (!vis || vis.has(r.persona_id)) (mappa[r.serata_id] ||= {})[r.persona_id] = { b: r.b, t: r.t };
+    for (const r of ris.results) if (!vis || vis.has(r.persona_id)) (mappa[r.serata_id] ||= {})[r.persona_id] = { b: r.b, t: r.t, e: r.e || 0 };
     const out = {
       ver: VER, me, persone: vis ? persone.filter(p => vis.has(p.id)) : persone, locali: loc.results,
       serate: ser.results.map(s => ({ ...s, ris: mappa[s.id] || {} })),
@@ -148,7 +150,7 @@ async function api(req, env, me, path) {
       const eta = etaMin(body.eta_min);
       if (tipo === 'format' && eta == null) return err('Indica l\'età minima del format (es. 14).');
       const id = uid();
-      await env.DB.prepare('INSERT INTO locali (id,nome,tipo,eta_min) VALUES (?,?,?,?)').bind(id, nome, tipo, tipo === 'format' ? eta : null).run();
+      await env.DB.prepare('INSERT INTO locali (id,nome,tipo,eta_min,misura) VALUES (?,?,?,?,?)').bind(id, nome, tipo, tipo === 'format' ? eta : null, tipo === 'format' ? misura(body.misura) : null).run();
       return json({ ok: true, id });
     }
     if (m === 'PUT' && seg[1]) {
@@ -157,7 +159,7 @@ async function api(req, env, me, path) {
       const nome = txt(body.nome, 80); if (!nome) return err('Scrivi il nome.');
       const eta = etaMin(body.eta_min);
       if (l.tipo === 'format' && eta == null) return err('Indica l\'età minima del format (es. 14).');
-      await env.DB.prepare('UPDATE locali SET nome=?, eta_min=? WHERE id=?').bind(nome, l.tipo === 'format' ? eta : null, seg[1]).run();
+      await env.DB.prepare('UPDATE locali SET nome=?, eta_min=?, misura=? WHERE id=?').bind(nome, l.tipo === 'format' ? eta : null, l.tipo === 'format' ? misura(body.misura) : null, seg[1]).run();
       return json({ ok: true });
     }
     if (m === 'DELETE' && seg[1]) {
@@ -180,8 +182,8 @@ async function api(req, env, me, path) {
         .bind(sid, data, txt(body.nome, 120), body.loc || null, body.fmt || null));
       st.push(env.DB.prepare('DELETE FROM risultati WHERE serata_id=?').bind(sid));
       for (const [pid, r] of Object.entries(body.ris || {})) {
-        const b = Math.max(0, parseInt(r && r.b, 10) || 0), t = Math.max(0, parseInt(r && r.t, 10) || 0);
-        if (b >= 1 || t >= 1) st.push(env.DB.prepare('INSERT INTO risultati (serata_id,persona_id,b,t) VALUES (?,?,?,?)').bind(sid, txt(pid, 40), b, t));
+        const b = Math.max(0, parseInt(r && r.b, 10) || 0), t = Math.max(0, parseInt(r && r.t, 10) || 0), e = Math.max(0, parseInt(r && r.e, 10) || 0); // e = incasso tavoli in centesimi
+        if (b >= 1 || t >= 1 || e > 0) st.push(env.DB.prepare('INSERT INTO risultati (serata_id,persona_id,b,t,e) VALUES (?,?,?,?,?)').bind(sid, txt(pid, 40), b, t, e));
       }
       await env.DB.batch(st); return json({ ok: true, id: sid });
     }

@@ -98,7 +98,7 @@ td .note.i{display:inline;margin-left:8px}td .note{display:block;max-width:28ch;
 .msg{min-height:20px;color:var(--red);font-size:13px;margin:4px 0}
 .msg.ok{color:var(--ok)}
 .rl{max-height:50vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px;margin:6px 0}
-.rr{display:grid;grid-template-columns:minmax(0,1fr) 70px 70px;gap:6px;align-items:center;padding:3px 10px;border-bottom:1px solid var(--line);font-size:13.5px}
+.rr{display:grid;grid-template-columns:minmax(0,1fr) 70px 70px;}.rr.inc{grid-template-columns:minmax(0,1fr) 70px 70px 90px}.rr{gap:6px;align-items:center;padding:3px 10px;border-bottom:1px solid var(--line);font-size:13.5px}
 .rr:last-child{border-bottom:0}.rr.has{background:var(--panel)}
 .rr input{text-align:right;min-height:32px;padding:3px 8px}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px}
@@ -145,12 +145,17 @@ const banner=t=>{const b=$('#banner');b.textContent=t||'';b.style.display=t?'blo
 const locName=id=>S.loc.find(l=>l.id===id)?.nome||'';
 const etaTxt=l=>l&&l.tipo==='format'?(l.eta_min?l.eta_min+'+':'età da indicare'):'';
 const serOrd=()=>[...S.ser].sort((a,b)=>(a.data||'').localeCompare(b.data||''));
-const R=(s,id)=>{const x=(s.ris||{})[id];return typeof x==='number'?{b:x,t:0}:{b:+(x&&x.b)||0,t:+(x&&x.t)||0}};
-const add=(a,r)=>(a.b+=r.b,a.t+=r.t,a);
+const R=(s,id)=>{const x=(s.ris||{})[id];return typeof x==='number'?{b:x,t:0,e:0}:{b:+(x&&x.b)||0,t:+(x&&x.t)||0,e:+(x&&x.e)||0}};
+const add=(a,r)=>(a.b+=r.b,a.t+=r.t,a.e=(a.e||0)+(r.e||0),a);
+const EUR=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const EUR2=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2});
+const eur=c=>((c||0)%100?EUR2:EUR).format((c||0)/100); // incasso salvato in centesimi
+const cent=v=>{const n=parseFloat(String(v||'').replace(/\s|€/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));return Number.isFinite(n)&&n>0?Math.round(n*100):0};
+const misuraDi=fid=>S.loc.find(l=>l.id===fid)?.misura==='incasso'?'incasso':'persone';
 const vend=(id,ser)=>ser.reduce((a,s)=>add(a,R(s,id)),{b:0,t:0});
 const team=(id,ser)=>{const a=vend(id,ser);for(const c of figli(id))add(a,team(c.id,ser));return a};
-const sumSer=s=>Object.keys(s.ris||{}).reduce((a,id)=>add(a,R(s,id)),{b:0,t:0});
-const BT=v=>`<b>${v.b}</b> bigl. · <b>${v.t}</b> tav.`;
+const sumSer=s=>Object.keys(s.ris||{}).reduce((a,id)=>add(a,R(s,id)),{b:0,t:0,e:0});
+const BT=v=>`<b>${v.b}</b> bigl. · <b>${v.t}</b> tav.${v.e?` · <b>${eur(v.e)}</b>`:''}`;
 const view=()=>{const h=location.hash.slice(1);return h.startsWith('persona-')?'persona':['archivio','struttura','serate','report','accessi'].includes(h)?h:'archivio'};
 
 /* ---------- grafici ---------- */
@@ -163,7 +168,7 @@ const gruppo=(f,sortKey)=>{const m=new Map();let nd=0;for(const p of S.pr){const
 const colChart=(id,pts)=>{S.charts[id]=pts;return `<div class="fig${id[0]==='p'?' sm':''}"><svg data-c="${id}" role="img" aria-label="Grafico a colonne"></svg></div>`};
 const draw=()=>{for(const s of document.querySelectorAll('svg[data-c]')){const pts=S.charts[s.dataset.c]||[];const W=s.clientWidth,H=s.clientHeight;if(!W)continue;
   if(!pts.length){s.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">Nessuna serata con risultati</text>`;continue}
-  const col=/^[pq]?t$/.test(s.dataset.c)?'var(--yel)':'var(--red)';const L=32,R=6,T=16,B=24,iw=W-L-R,ih=H-T-B,n=pts.length,max=Math.max(1,...pts.map(p=>p.v));
+  const col=/^[pq]?t$/.test(s.dataset.c)?'var(--yel)':/^[pq]?e$/.test(s.dataset.c)?'var(--or)':'var(--red)';const L=32,R=6,T=16,B=24,iw=W-L-R,ih=H-T-B,n=pts.length,max=Math.max(1,...pts.map(p=>p.v));
   const step=Math.max(1,Math.ceil(max/4/(max>20?5:1))*(max>20?5:1));const top=Math.ceil(max/step)*step;
   const bw=iw/n,w=Math.min(52,bw*.7),every=Math.ceil(n/Math.max(1,Math.floor(iw/(W<520?56:48))));let g='';
   for(let v=0;v<=top;v+=step){const y=T+ih-v/top*ih;g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-6}" y="${y+4}" text-anchor="end">${v}</text>`}
@@ -201,7 +206,7 @@ function vArchivio(){const c=k=>S.pr.filter(p=>p.ruolo===k).length;
 
 /* ---------- struttura ---------- */
 function vStruttura(){const ser=S.ser,T=id=>`<span class="tot">personali ${BT(vend(id,ser))}</span>`;
-  const leaves=list=>list.length?`<div class="leaves">${list.sort(sortNome).map(p=>{const v=vend(p.id,ser);return `<span class="leaf"><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span title="biglietti · tavoli">${v.b} · ${v.t}</span></span>`}).join('')}</div>`:'';
+  const leaves=list=>list.length?`<div class="leaves">${list.sort(sortNome).map(p=>{const v=vend(p.id,ser);return `<span class="leaf"><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span title="biglietti · tavoli${v.e?' · incasso':''}">${v.b} · ${v.t}${v.e?' · '+eur(v.e):''}</span></span>`}).join('')}</div>`:'';
   const capo=c=>{const pr=figli(c.id);return `<div class="c"><div class="nh"><span class="tag capo">Capo PR</span><button class="link" data-pg="${c.id}">${esc(nome(c))}</button><span class="sp"></span>${T(c.id)}<span class="tot">gruppo ${BT(team(c.id,ser))} · ${pr.length} PR</span></div>${leaves(pr)||'<p class="empty">Nessun PR collegato</p>'}</div>`};
   const top=p=>!p.parent||!byId(p.parent);
   const staff=S.pr.filter(p=>p.ruolo==='staff'&&top(p)).sort(sortNome);
@@ -218,54 +223,57 @@ function vStruttura(){const ser=S.ser,T=id=>`<span class="tot">personali ${BT(ve
 
 /* ---------- serate ---------- */
 function vSerate(){const l=serOrd().reverse();
-  const chip=x=>`<span class="leaf"><button class="link" data-el="${x.id}" title="Modifica">${esc(x.nome)}</button><span ${x.tipo==='format'&&!x.eta_min?'style="color:var(--red)"':''}>${x.tipo==='format'?'format · '+etaTxt(x):'locale'}</span><button class="ghost" data-dl="${x.id}" aria-label="Elimina ${esc(x.nome)}">×</button></span>`;
+  const chip=x=>`<span class="leaf"><button class="link" data-el="${x.id}" title="Modifica">${esc(x.nome)}</button><span ${x.tipo==='format'&&!x.eta_min?'style="color:var(--red)"':''}>${x.tipo==='format'?'format · '+etaTxt(x)+(x.misura==='incasso'?' · a incasso':''):'locale'}</span><button class="ghost" data-dl="${x.id}" aria-label="Elimina ${esc(x.nome)}">×</button></span>`;
   return `<div class="top"><div class="sp"><h2>Serate</h2><p class="sub">Inserisci biglietti TicketSMS e tavoli di ogni PR. Chi fa 0 in entrambi non viene registrato.</p></div><button class="pri" data-ns="1">Nuova serata</button></div>
   <div class="card" style="margin-bottom:12px"><h3>Locali e format</h3><div class="chips">${S.loc.length?[...S.loc].sort((a,b)=>a.tipo.localeCompare(b.tipo)||a.nome.localeCompare(b.nome,'it')).map(chip).join(''):'<p class="empty">Aggiungi i locali e i format: ognuno avrà la sua sezione nei report.</p>'}</div>
-  <div class="row"><input id="lN" placeholder="Nome locale o format" style="flex:2 1 200px;width:auto"><select id="lT" style="flex:1 1 120px;width:auto"><option value="locale">Locale</option><option value="format">Format</option></select><input id="lE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima (es. 14)" style="flex:1 1 150px;width:auto" hidden><button id="lA">Aggiungi</button></div><p class="msg" id="lM"></p></div>
-  <div class="tbl"><table class="stack"><thead><tr><th>Data</th><th>Serata</th><th>Locale</th><th>Format</th><th class="n">PR a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th></tr></thead><tbody>
-  ${l.length?l.map(s=>{const v=sumSer(s);return `<tr><td class="n" style="text-align:left">${fmtD(s.data)}</td><td><button class="link" data-es="${s.id}">${esc(s.nome||'Serata')}</button></td><td>${esc(locName(s.loc))}</td><td>${esc(locName(s.fmt))}</td><td class="n">${Object.keys(s.ris||{}).length}</td><td class="n">${v.b}</td><td class="n">${v.t}</td></tr>`}).join(''):'<tr><td colspan="7"><p class="empty">Nessuna serata inserita.</p></td></tr>'}</tbody></table></div>`}
+  <div class="row"><input id="lN" placeholder="Nome locale o format" style="flex:2 1 200px;width:auto"><select id="lT" style="flex:1 1 120px;width:auto"><option value="locale">Locale</option><option value="format">Format</option></select><input id="lE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima (es. 14)" style="flex:1 1 150px;width:auto" hidden><select id="lMis" style="flex:1 1 150px;width:auto" hidden><option value="persone">Si misura a persone</option><option value="incasso">Si misura a incasso</option></select><button id="lA">Aggiungi</button></div><p class="msg" id="lM"></p></div>
+  <div class="tbl"><table class="stack"><thead><tr><th>Data</th><th>Serata</th><th>Locale</th><th>Format</th><th class="n">PR a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">Incasso tavoli</th></tr></thead><tbody>
+  ${l.length?l.map(s=>{const v=sumSer(s);return `<tr><td class="n" style="text-align:left">${fmtD(s.data)}</td><td><button class="link" data-es="${s.id}">${esc(s.nome||'Serata')}</button></td><td>${esc(locName(s.loc))}</td><td>${esc(locName(s.fmt))}</td><td class="n">${Object.keys(s.ris||{}).length}</td><td class="n">${v.b}</td><td class="n">${v.t}</td><td class="n">${v.e?eur(v.e):''}</td></tr>`}).join(''):'<tr><td colspan="8"><p class="empty">Nessuna serata inserita.</p></td></tr>'}</tbody></table></div>`}
 
 /* ---------- report ---------- */
-function classifica(ser,loc,fm){const k=S.clT||'pr',key=S.clS||'tot',m1=n=>n.toFixed(1).replace('.',',');
-  const righe=S.pr.filter(p=>p.ruolo===k).map(p=>{let b=0,t=0,n=0;for(const s of ser){const v=k==='pr'?R(s,p.id):team(p.id,[s]);b+=v.b;t+=v.t;if(v.b+v.t>=1)n++}
-    return {p,b,t,tot:b+t,n,media:n?(b+t)/n:0}}).filter(x=>x.tot>=1).sort((a,b)=>b[key]-a[key]||b.tot-a.tot||sortNome(a.p,b.p));
+function classifica(ser,loc,fm){const k=S.clT||'pr',m1=n=>n.toFixed(1).replace('.',',');
+  const inc=ser.some(s=>sumSer(s).e>0);let key=S.clS||'tot';if(!inc&&(key==='e'||key==='emedia'))key='tot';
+  const righe=S.pr.filter(p=>p.ruolo===k).map(p=>{let b=0,t=0,e=0,n=0,ne=0;for(const s of ser){const v=k==='pr'?R(s,p.id):team(p.id,[s]);b+=v.b;t+=v.t;e+=v.e||0;if(v.b+v.t>=1)n++;if(v.e>0)ne++}
+    return {p,b,t,e,tot:b+t,n,ne,media:n?(b+t)/n:0,emedia:ne?e/ne:0}}).filter(x=>x.tot>=1||x.e>0).sort((a,b)=>b[key]-a[key]||b.tot-a.tot||sortNome(a.p,b.p));
   const tab=(v,l)=>`<button data-cl="${v}" class="${k===v?'on':''}">${l}</button>`;
   const th=(v,l)=>`<th class="n ${key===v?'on':''}">${l}</th>`;
   return `<div class="card" style="margin-bottom:12px"><div class="row" style="margin-bottom:8px"><h3 style="margin:0">Classifica</h3>
   <div class="tabs" style="margin:0">${tab('staff','Capi staff')}${tab('capo','Capi PR')}${tab('pr','PR')}</div><span class="sp"></span>
-  <label style="display:flex;gap:6px;align-items:center">Ordina per <select id="clS" style="width:auto">${[['tot','Totale persone'],['b','TicketSMS'],['t','Tavoli'],['media','Media persone']].map(([v,l])=>`<option value="${v}" ${v===key?'selected':''}>${l}</option>`).join('')}</select></label>
+  <label style="display:flex;gap:6px;align-items:center">Ordina per <select id="clS" style="width:auto">${[['tot','Totale persone'],['b','TicketSMS'],['t','Tavoli'],['media','Media persone']].concat(inc?[['e','Incasso tavoli'],['emedia','Incasso medio']]:[]).map(([v,l])=>`<option value="${v}" ${v===key?'selected':''}>${l}</option>`).join('')}</select></label>
   <label style="display:flex;gap:6px;align-items:center">Serate <select id="clF" style="width:auto"><option value="all">Tutte</option>${loc.length?`<optgroup label="Locali">${loc.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}${fm.length?`<optgroup label="Format">${fm.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}${l.eta_min?' · '+l.eta_min+'+':''}</option>`).join('')}</optgroup>`:''}</select></label></div>
-  <p class="note" style="margin:0 0 8px">${k==='pr'?'PR: solo i risultati personali.':`${k==='staff'?'Capi staff':'Capi PR'}: personali + tutto il loro gruppo.`} Totale persone = TicketSMS + tavoli; media = totale persone diviso le serate con almeno 1 persona.</p>
-  ${righe.length?`<div class="tbl s"><table><thead><tr><th class="n">#</th><th>Nome</th><th class="n">Serate</th>${th('b','TicketSMS')}${th('t','Tavoli')}${th('tot','Totale persone')}${th('media','Media persone')}</tr></thead><tbody>
-  ${righe.map((x,i)=>`<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${x.p.id}">${esc(nome(x.p))}</button>${x.p.parent&&byId(x.p.parent)?`<span class="note i">${esc(nome(byId(x.p.parent)))}</span>`:''}</td><td class="n">${x.n}</td><td class="n">${x.b}</td><td class="n">${x.t}</td><td class="n"><b>${x.tot}</b></td><td class="n">${m1(x.media)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>`}
+  <p class="note" style="margin:0 0 8px">${k==='pr'?'PR: solo i risultati personali.':`${k==='staff'?'Capi staff':'Capi PR'}: personali + tutto il loro gruppo.`} Totale persone = TicketSMS + tavoli; media = totale persone diviso le serate con almeno 1 persona.${inc?' Incasso medio = incasso tavoli diviso le serate con incasso.':''}</p>
+  ${righe.length?`<div class="tbl s"><table><thead><tr><th class="n">#</th><th>Nome</th><th class="n">Serate</th>${th('b','TicketSMS')}${th('t','Tavoli')}${th('tot','Totale persone')}${th('media','Media persone')}${inc?th('e','Incasso tavoli')+th('emedia','Incasso medio'):''}</tr></thead><tbody>
+  ${righe.map((x,i)=>`<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${x.p.id}">${esc(nome(x.p))}</button>${x.p.parent&&byId(x.p.parent)?`<span class="note i">${esc(nome(byId(x.p.parent)))}</span>`:''}</td><td class="n">${x.n}</td><td class="n">${x.b}</td><td class="n">${x.t}</td><td class="n"><b>${x.tot}</b></td><td class="n">${m1(x.media)}</td>${inc?`<td class="n"><b>${x.e?eur(x.e):''}</b></td><td class="n">${x.ne?eur(x.emedia):''}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>`}
 function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it')),fm=S.loc.filter(l=>l.tipo==='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
   if(S.rep!=='all'&&!S.loc.some(l=>l.id===S.rep))S.rep='all';
   const tb=(k,t)=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${esc(t)}</button>`;
   const ser=serOrd().filter(s=>S.rep==='all'||s.loc===S.rep||s.fmt===S.rep);
   const titolo=S.rep==='all'?'Tutte le serate':locName(S.rep);
-  const tot=ser.reduce((a,s)=>add(a,sumSer(s)),{b:0,t:0});
-  const stat=new Map();for(const s of ser)for(const id of Object.keys(s.ris||{})){const r=R(s,id);if(r.b<1&&r.t<1)continue;const o=stat.get(id)||{b:0,t:0,n:0,max:0};o.b+=r.b;o.t+=r.t;o.n++;o.max=Math.max(o.max,r.b+r.t);stat.set(id,o)}
+  const tot=ser.reduce((a,s)=>add(a,sumSer(s)),{b:0,t:0,e:0}),inc=tot.e>0,serInc=ser.filter(s=>sumSer(s).e>0).length;
+  const stat=new Map();for(const s of ser)for(const id of Object.keys(s.ris||{})){const r=R(s,id);if(r.b<1&&r.t<1&&!r.e)continue;const o=stat.get(id)||{b:0,t:0,e:0,n:0,max:0};o.b+=r.b;o.t+=r.t;o.e+=r.e;o.n++;o.max=Math.max(o.max,r.b+r.t);stat.set(id,o)}
   const cls=[...stat].sort((a,b)=>b[1].b-a[1].b||b[1].t-a[1].t);
-  const rami=S.pr.filter(p=>p.ruolo!=='pr'&&figli(p.id).length).map(p=>[p,team(p.id,ser)]).filter(x=>x[1].b||x[1].t).sort((a,b)=>b[1].b-a[1].b||b[1].t-a[1].t);
+  const rami=S.pr.filter(p=>p.ruolo!=='pr'&&figli(p.id).length).map(p=>[p,team(p.id,ser)]).filter(x=>x[1].b||x[1].t||x[1].e).sort((a,b)=>(b[1].b+b[1].t)-(a[1].b+a[1].t)||b[1].e-a[1].e);
   if(S.repPr&&!stat.has(S.repPr))S.repPr='';const pSel=S.repPr||cls[0]?.[0]||'';
   const pt=(s,v)=>({l:fmtD(s.data).slice(0,5),t:`${fmtD(s.data)} ${s.nome||''}`,v});
   const best=ser.reduce((b,s)=>{const v=sumSer(s).b;return !b||v>b.v?{v,s}:b},null);
   const m1=n=>n.toFixed(1).replace('.',',');
-  return `<div class="top"><div class="sp"><h2>Report risultati</h2><p class="sub">Un PR conta in una serata solo se ha almeno 1 biglietto o 1 tavolo.</p></div></div>
-  <div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':''))).join('')}</div>
+  return `<div class="top"><div class="sp"><h2>Report risultati</h2><p class="sub">Un PR conta in una serata solo se ha almeno 1 biglietto, 1 tavolo o un incasso. Persone ed euro non si sommano mai tra loro.</p></div></div>
+  <div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':'')+(l.misura==='incasso'?' · €':''))).join('')}</div>
   <h3 style="font-size:18px">${esc(titolo)}</h3>
   <div class="kpis"><div class="kpi"><b>${ser.length}</b><span>serate</span></div><div class="kpi"><b>${tot.b}</b><span>biglietti TicketSMS</span></div>
   <div class="kpi"><b>${tot.t}</b><span>tavoli</span></div><div class="kpi"><b>${ser.length?m1((tot.b+tot.t)/ser.length):'0'}</b><span>persone medie a serata (TicketSMS + tavoli)</span></div>
   <div class="kpi"><b>${stat.size}</b><span>PR andati a segno</span></div>
-  <div class="kpi"><b>${best?best.v:0}</b><span>biglietti nella serata migliore${best?' · '+fmtD(best.s.data):''}</span></div></div>
+  <div class="kpi"><b>${best?best.v:0}</b><span>biglietti nella serata migliore${best?' · '+fmtD(best.s.data):''}</span></div>
+  ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eur(tot.e)}</b><span>incasso tavoli</span></div><div class="kpi" style="border-top-color:var(--or)"><b>${eur(serInc?tot.e/serInc:0)}</b><span>incasso medio a serata (serate con incasso)</span></div>`:''}</div>
   <div class="grid3"><div class="card"><h3>Biglietti per serata</h3>${colChart('b',ser.map(s=>pt(s,sumSer(s).b)))}</div>
   <div class="card"><h3>Tavoli per serata</h3>${colChart('t',ser.map(s=>pt(s,sumSer(s).t)))}</div>
-  <div class="card"><h3>PR andati a segno per serata</h3>${colChart('a',ser.map(s=>pt(s,Object.keys(s.ris||{}).length)))}</div></div>
+  <div class="card"><h3>PR andati a segno per serata</h3>${colChart('a',ser.map(s=>pt(s,Object.keys(s.ris||{}).length)))}</div>
+  ${inc?`<div class="card"><h3>Incasso tavoli per serata (€)</h3>${colChart('e',ser.map(s=>pt(s,Math.round(sumSer(s).e/100))))}</div>`:''}</div>
   ${classifica(ser,loc,fm)}
   <div class="grid2">
   <div class="card"><h3>Trend di un PR</h3><label>PR<select id="rpP">${cls.map(([id])=>`<option value="${id}" ${id===pSel?'selected':''}>${esc(nome(byId(id)))}</option>`).join('')||'<option>Nessuno</option>'}</select></label>
-  <p class="note" style="margin:12px 0 0">Biglietti</p>${colChart('pb',pSel?ser.map(s=>pt(s,R(s,pSel).b)):[])}<p class="note" style="margin:12px 0 0">Tavoli</p>${colChart('pt',pSel?ser.map(s=>pt(s,R(s,pSel).t)):[])}</div></div>
-  <div class="card"><h3>Totale per ramo dello staff</h3>${rami.length?`<div class="tbl s"><table><thead><tr><th>Ramo</th><th class="n">Biglietti</th><th class="n">Tavoli</th></tr></thead><tbody>${rami.map(([p,v])=>`<tr><td><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span class="note i">${RUOLI[p.ruolo]} · ${figli(p.id).length} collegati</span></td><td class="n"><b>${v.b}</b></td><td class="n">${v.t}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun ramo con risultati.</p>'}</div>`}
+  <p class="note" style="margin:12px 0 0">Biglietti</p>${colChart('pb',pSel?ser.map(s=>pt(s,R(s,pSel).b)):[])}<p class="note" style="margin:12px 0 0">Tavoli</p>${colChart('pt',pSel?ser.map(s=>pt(s,R(s,pSel).t)):[])}${pSel&&stat.get(pSel)?.e?`<p class="note" style="margin:12px 0 0">Incasso tavoli (€)</p>${colChart('pe',ser.map(s=>pt(s,Math.round(R(s,pSel).e/100))))}`:''}</div></div>
+  <div class="card"><h3>Totale per ramo dello staff</h3>${rami.length?`<div class="tbl s"><table><thead><tr><th>Ramo</th><th class="n">Biglietti</th><th class="n">Tavoli</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>${rami.map(([p,v])=>`<tr><td><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span class="note i">${RUOLI[p.ruolo]} · ${figli(p.id).length} collegati</span></td><td class="n"><b>${v.b}</b></td><td class="n">${v.t}</td>${inc?`<td class="n">${v.e?eur(v.e):''}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun ramo con risultati.</p>'}</div>`}
 
 
 /* ---------- pagina persona ---------- */
@@ -273,7 +281,7 @@ const PAL=['#e3301c','#ff8a1f','#2f7fd8','#1f9e6e','#ffbf1f','#8a4fd1','#d6337f'
 function scopeTabs(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it')),fm=S.loc.filter(l=>l.tipo==='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
   if(S.rep!=='all'&&!S.loc.some(l=>l.id===S.rep))S.rep='all';
   const tb=(k,t)=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${esc(t)}</button>`;
-  return `<div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':''))).join('')}</div>`}
+  return `<div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':'')+(l.misura==='incasso'?' · €':''))).join('')}</div>`}
 function vPersona(){const id=location.hash.slice(9),p=byId(id);
   if(!p)return `<div class="top"><div class="sp"><h2>Persona non trovata</h2><p class="sub">Potrebbe essere stata eliminata.</p></div><a class="btn" href="#archivio" style="display:inline-flex;align-items:center;text-decoration:none">Torna all'archivio</a></div>`;
   const ser=serOrd().filter(s=>S.rep==='all'||s.loc===S.rep||s.fmt===S.rep);
@@ -282,17 +290,17 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   const segs=[{n:'Personali',id:null,ruolo:p.ruolo,f:s=>R(s,id)}];
   const f=figli(id).sort((a,b)=>ORD[a.ruolo]-ORD[b.ruolo]||sortNome(a,b));
   for(const c of f)segs.push({n:nome(c)+(c.ruolo!=='pr'?' (gruppo)':''),id:c.id,ruolo:c.ruolo,f:c.ruolo!=='pr'?(s=>team(c.id,[s])):(s=>R(s,c.id))});
-  for(const sg of segs){sg.tot=ser.reduce((a,s)=>add(a,sg.f(s)),{b:0,t:0});sg.ser=ser.filter(s=>{const r=sg.f(s);return r.b||r.t}).length}
-  const attivi=segs.filter(sg=>sg.tot.b||sg.tot.t);let ci=0;for(const sg of segs)sg.c=sg.id===null?'var(--ink)':(sg.tot.b||sg.tot.t)?PAL[ci++%PAL.length]:'var(--line)';
-  const tot=segs.reduce((a,sg)=>add(a,{...sg.tot}),{b:0,t:0});
-  const perSer=ser.map(s=>segs.reduce((a,sg)=>add(a,sg.f(s)),{b:0,t:0}));
+  for(const sg of segs){sg.tot=ser.reduce((a,s)=>add(a,sg.f(s)),{b:0,t:0,e:0});sg.ser=ser.filter(s=>{const r=sg.f(s);return r.b||r.t||r.e}).length}
+  const attivi=segs.filter(sg=>sg.tot.b||sg.tot.t||sg.tot.e);let ci=0;for(const sg of segs)sg.c=sg.id===null?'var(--ink)':(sg.tot.b||sg.tot.t||sg.tot.e)?PAL[ci++%PAL.length]:'var(--line)';
+  const tot=segs.reduce((a,sg)=>add(a,{...sg.tot}),{b:0,t:0,e:0}),inc=tot.e>0;
+  const perSer=ser.map(s=>segs.reduce((a,sg)=>add(a,sg.f(s)),{b:0,t:0,e:0}));
   const best=ser.reduce((b,s,i)=>!b||perSer[i].b>b.v?{v:perSer[i].b,s}:b,null);
   const conRis=perSer.filter(v=>v.b||v.t).length;
   const capo=p.ruolo!=='pr'&&f.length;
   const m1=n=>n.toFixed(1).replace('.',',');
-  const chart=(k,key)=>capo?colChart(k,ser.map(s=>{const sg=attivi.map(x=>({n:x.n,c:x.c,v:x.f(s)[key]}));return {...lab(s),v:sg.reduce((a,x)=>a+x.v,0),segs:sg}})):colChart(k,ser.map(s=>({...lab(s),v:R(s,id)[key]})));
+  const chart=(k,key)=>capo?colChart(k,ser.map(s=>{const sg=attivi.map(x=>({n:x.n,c:x.c,v:key==='e'?Math.round((x.f(s).e||0)/100):x.f(s)[key]}));return {...lab(s),v:sg.reduce((a,x)=>a+x.v,0),segs:sg}})):colChart(k,ser.map(s=>({...lab(s),v:key==='e'?Math.round(R(s,id).e/100):R(s,id)[key]})));
   const info=[['Anno',p.anno],['Scuola',p.scuola],['Zona',p.zona],['Telefono',p.tel]].filter(x=>x[1]);
-  const legend=capo?`<div class="leaves" style="margin:0 0 8px">${attivi.map(sg=>`<span class="leaf" style="padding-left:6px"><i style="width:10px;height:10px;border-radius:3px;background:${sg.c};display:inline-block"></i>${sg.id?`<button class="link" data-pg="${sg.id}">${esc(sg.n)}</button>`:`<b>${esc(sg.n)}</b>`}<span>${sg.tot.b} · ${sg.tot.t}</span></span>`).join('')||'<p class="empty">Nessun risultato in queste serate.</p>'}</div>`:'';
+  const legend=capo?`<div class="leaves" style="margin:0 0 8px">${attivi.map(sg=>`<span class="leaf" style="padding-left:6px"><i style="width:10px;height:10px;border-radius:3px;background:${sg.c};display:inline-block"></i>${sg.id?`<button class="link" data-pg="${sg.id}">${esc(sg.n)}</button>`:`<b>${esc(sg.n)}</b>`}<span>${sg.tot.b} · ${sg.tot.t}${sg.tot.e?' · '+eur(sg.tot.e):''}</span></span>`).join('')||'<p class="empty">Nessun risultato in queste serate.</p>'}</div>`:'';
   return `<div class="top"><div class="sp"><p class="sub" style="margin:0 0 4px"><button class="link" data-back="1" style="font-weight:600">← Indietro</button></p>
   <h2>${esc(nome(p))} <span class="tag ${p.ruolo}" style="vertical-align:middle;font-size:13px">${RUOLI[p.ruolo]}</span></h2>
   <p class="sub">${p.parent?`Sotto <button class="link" data-pg="${p.parent}">${esc(nome(byId(p.parent)))}</button>`:p.ruolo==='staff'?'Vertice dello staff':'Senza superiore'}${info.map(([k,v])=>` · ${k} <b style="color:var(--ink)">${esc(v)}</b>`).join('')}${p.ruolo!=='pr'?` · ${f.length} collegati`:''}</p>
@@ -302,11 +310,12 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   <div class="kpi"><b>${tot.b}</b><span>biglietti${capo?' del ramo':''}</span></div><div class="kpi"><b>${tot.t}</b><span>tavoli${capo?' del ramo':''}</span></div>
   ${capo?`<div class="kpi"><b>${segs[0].tot.b} · ${segs[0].tot.t}</b><span>personali (bigl. · tav.)</span></div>`:''}
   <div class="kpi"><b>${conRis?m1((tot.b+tot.t)/conRis):'0'}</b><span>persone medie nelle serate attive (TicketSMS + tavoli)</span></div>
-  <div class="kpi"><b>${best&&best.v?best.v:0}</b><span>miglior serata${best&&best.v?' · '+fmtD(best.s.data):''}</span></div></div>
+  <div class="kpi"><b>${best&&best.v?best.v:0}</b><span>miglior serata${best&&best.v?' · '+fmtD(best.s.data):''}</span></div>
+  ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eur(tot.e)}</b><span>incasso tavoli${capo?' del ramo':''}${capo&&segs[0].tot.e?' · personale '+eur(segs[0].tot.e):''}</span></div>`:''}</div>
   ${legend}
-  <div class="grid2"><div class="card"><h3>Biglietti per serata${capo?' · totale e parziali':''}</h3>${chart('qb','b')}</div><div class="card"><h3>Tavoli per serata${capo?' · totale e parziali':''}</h3>${chart('qt','t')}</div></div>
-  ${capo?`<div class="card"><h3>${p.ruolo==='staff'?'Gruppi e PR collegati':'PR collegati'}</h3><div class="tbl s"><table><thead><tr><th></th><th>Nome</th><th>Ruolo</th><th class="n">Serate a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">% biglietti ramo</th></tr></thead><tbody>
-  ${segs.map(sg=>`<tr><td style="width:18px"><i style="width:10px;height:10px;border-radius:3px;background:${sg.c};display:inline-block"></i></td><td>${sg.id?`<button class="link" data-pg="${sg.id}">${esc(sg.n)}</button>`:`<b>${esc(sg.n)}</b>`}</td><td>${sg.id?`<span class="tag ${sg.ruolo}">${RUOLI[sg.ruolo]}</span>`:''}</td><td class="n">${sg.ser}</td><td class="n"><b>${sg.tot.b}</b></td><td class="n">${sg.tot.t}</td><td class="n">${tot.b?Math.round(sg.tot.b/tot.b*100)+'%':'—'}</td></tr>`).join('')}</tbody></table></div></div>`:''}`}
+  <div class="grid2"><div class="card"><h3>Biglietti per serata${capo?' · totale e parziali':''}</h3>${chart('qb','b')}</div><div class="card"><h3>Tavoli per serata${capo?' · totale e parziali':''}</h3>${chart('qt','t')}</div>${inc?`<div class="card"><h3>Incasso tavoli per serata (€)${capo?' · totale e parziali':''}</h3>${chart('qe','e')}</div>`:''}</div>
+  ${capo?`<div class="card"><h3>${p.ruolo==='staff'?'Gruppi e PR collegati':'PR collegati'}</h3><div class="tbl s"><table><thead><tr><th></th><th>Nome</th><th>Ruolo</th><th class="n">Serate a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">% persone ramo</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>
+  ${segs.map(sg=>`<tr><td style="width:18px"><i style="width:10px;height:10px;border-radius:3px;background:${sg.c};display:inline-block"></i></td><td>${sg.id?`<button class="link" data-pg="${sg.id}">${esc(sg.n)}</button>`:`<b>${esc(sg.n)}</b>`}</td><td>${sg.id?`<span class="tag ${sg.ruolo}">${RUOLI[sg.ruolo]}</span>`:''}</td><td class="n">${sg.ser}</td><td class="n"><b>${sg.tot.b}</b></td><td class="n">${sg.tot.t}</td><td class="n">${tot.b+tot.t?Math.round((sg.tot.b+sg.tot.t)/(tot.b+tot.t)*100)+'%':'—'}</td>${inc?`<td class="n">${sg.tot.e?eur(sg.tot.e):''}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`:''}`}
 
 /* ---------- accessi ---------- */
 function vAccessi(){const st=S.pr.filter(p=>p.ruolo==='staff').sort(sortNome);
@@ -367,16 +376,16 @@ function openSerata(id){const s=id?S.ser.find(x=>x.id===id):{data:new Date().toI
   $('#sheet').innerHTML=`<div class="row"><h2 class="sp">${id?esc(s.nome||'Serata'):'Nuova serata'}</h2><button class="ghost" data-x="1">Chiudi</button></div>
   <div class="form"><label>Data<input id="s-data" type="date" value="${esc(s.data||'')}"></label><label>Nome serata<input id="s-nome" value="${esc(s.nome||'')}" placeholder="Es. VidaLoca"></label>
   <label>Locale<select id="s-loc">${os('locale',s.loc)}</select></label><label>Format<select id="s-fmt">${os('format',s.fmt)}</select></label>
-  <div class="w row" id="s-new" hidden><input id="s-newN" style="flex:2 1 200px;width:auto"><input id="s-newE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima" style="flex:1 1 120px;width:auto" hidden><button class="pri" id="s-newA">Crea</button><button class="ghost" id="s-newX">Annulla</button></div></div>
-  <div class="row"><h3 class="sp" style="margin:0">Risultati PR</h3><span class="tot"><b id="sT">0</b> bigl. · <b id="sV">0</b> tav. · <b id="sN">0</b> PR a segno</span></div>
+  <div class="w row" id="s-new" hidden><input id="s-newN" style="flex:2 1 200px;width:auto"><input id="s-newE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima" style="flex:1 1 120px;width:auto" hidden><select id="s-newM" style="flex:1 1 140px;width:auto" hidden><option value="persone">A persone</option><option value="incasso">A incasso</option></select><button class="pri" id="s-newA">Crea</button><button class="ghost" id="s-newX">Annulla</button></div></div>
+  <div class="row"><h3 class="sp" style="margin:0">Risultati PR</h3><span class="tot"><b id="sT">0</b> bigl. · <b id="sV">0</b> tav.<span id="sEw"> · <b id="sE">€ 0</b></span> · <b id="sN">0</b> PR a segno</span></div>
   <input id="s-q" type="search" placeholder="Cerca un PR…" style="margin-top:8px"><div class="rl" id="rl"></div>
-  <details><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">Incolla una lista (una riga per PR: Nome Cognome biglietti tavoli)</summary>
+  <details><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">Incolla una lista (una riga per PR: Nome Cognome biglietti tavoli · nei format a incasso: Nome Cognome importo)</summary>
   <textarea id="s-paste" placeholder="Mario Rossi 12 1&#10;Giulia Bianchi;7"></textarea><div class="row" style="margin-top:8px"><button id="s-ap">Applica lista</button></div></details>
   <p class="msg" id="sM"></p><div class="row"><button class="pri" id="sS">Salva serata</button>${id?'<span class="sp"></span><button class="danger" id="sD">Elimina serata</button>':''}</div>`;
   listaRis();
   let nuovoTipo=null,prec={locale:s.loc||'',format:s.fmt||''};
   const selDi=t=>$(t==='format'?'#s-fmt':'#s-loc');
-  for(const t of ['locale','format'])selDi(t).onchange=e=>{if(e.target.value==='__new'){nuovoTipo=t;$('#s-new').hidden=false;$('#s-newN').placeholder='Nome del nuovo '+t;$('#s-newN').value='';$('#s-newE').hidden=t!=='format';$('#s-newE').value='';$('#s-newN').focus()}else prec[t]=e.target.value};
+  for(const t of ['locale','format'])selDi(t).onchange=e=>{if(e.target.value==='__new'){nuovoTipo=t;$('#s-new').hidden=false;$('#s-newN').placeholder='Nome del nuovo '+t;$('#s-newN').value='';$('#s-newE').hidden=$('#s-newM').hidden=t!=='format';$('#s-newE').value='';$('#s-newN').focus()}else{prec[t]=e.target.value;if(t==='format')listaRis()}};
   const chiudiNuovo=()=>{if(nuovoTipo)selDi(nuovoTipo).value=prec[nuovoTipo];nuovoTipo=null;$('#s-new').hidden=true};
   $('#s-newX').onclick=chiudiNuovo;
   $('#s-newE').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#s-newA').click()}};
@@ -384,41 +393,47 @@ function openSerata(id){const s=id?S.ser.find(x=>x.id===id):{data:new Date().toI
   $('#s-newA').onclick=async()=>{const n=$('#s-newN').value.trim(),t=nuovoTipo,m=$('#sM'),eta=$('#s-newE').value;if(!n){m.textContent='Scrivi il nome del nuovo '+t+'.';return}
     const esiste=S.loc.find(l=>l.tipo===t&&norm(l.nome)===norm(n));
     if(!esiste&&t==='format'&&!eta){m.className='msg';m.textContent='Indica l\'età minima del format.';return}
-    try{if(!esiste)await api('POST','/api/locali',{nome:n,tipo:t,eta_min:eta});await load();
+    try{if(!esiste)await api('POST','/api/locali',{nome:n,tipo:t,eta_min:eta,misura:$('#s-newM').value});await load();
       const nl=S.loc.find(l=>l.tipo===t&&norm(l.nome)===norm(n));
       for(const k of ['locale','format'])selDi(k).innerHTML=S.osel(k,k===t?nl?.id:prec[k]);
-      prec[t]=nl?.id||'';nuovoTipo=null;$('#s-new').hidden=true;m.className='msg ok';m.textContent=esiste?`${n} esisteva già: l'ho selezionato.`:`${t==='format'?'Format':'Locale'} "${n}" creato.`}
+      prec[t]=nl?.id||'';nuovoTipo=null;$('#s-new').hidden=true;if(t==='format')listaRis();m.className='msg ok';m.textContent=esiste?`${n} esisteva già: l'ho selezionato.`:`${t==='format'?'Format':'Locale'} "${n}" creato.`}
     catch(er){m.className='msg';m.textContent='Errore: '+(er.message||er.code)}};
   $('#s-q').oninput=e=>{S.rq=e.target.value;listaRis()};
-  $('#rl').oninput=e=>{const i=e.target.dataset.r,k=e.target.dataset.k;if(!i)return;const n=Math.max(0,parseInt(e.target.value,10)||0);
+  $('#rl').oninput=e=>{const i=e.target.dataset.r,k=e.target.dataset.k;if(!i)return;const n=k==='e'?cent(e.target.value):Math.max(0,parseInt(e.target.value,10)||0);
     const o={...R(S.draft,i)};o[k]=n;setRis(i,o);e.target.closest('.rr').classList.toggle('has',!!S.draft.ris[i]);totRis()};
   $('#s-ap').onclick=applicaLista;$('#sS').onclick=()=>salvaSerata(id);
   if(id)$('#sD').onclick=async e=>{const b=e.target;if(!b.dataset.c){b.dataset.c=1;b.textContent='Conferma eliminazione';return}
     b.disabled=true;try{await S.db.collection('serate').doc(id).delete();chiudi();toast('Serata eliminata')}catch(er){$('#sM').textContent='Errore: '+(er.message||er.code);b.disabled=false}};
   $('#modal').classList.add('on')}
-const setRis=(i,o)=>{if(o.b>=1||o.t>=1)S.draft.ris[i]={b:o.b||0,t:o.t||0};else delete S.draft.ris[i]};
-function totRis(){const v=sumSer(S.draft);$('#sT').textContent=v.b;$('#sV').textContent=v.t;$('#sN').textContent=Object.keys(S.draft.ris).length}
+const setRis=(i,o)=>{if(o.b>=1||o.t>=1||o.e>0)S.draft.ris[i]={b:o.b||0,t:o.t||0,e:o.e||0};else delete S.draft.ris[i]};
+const incAttivo=()=>misuraDi($('#s-fmt')?.value)==='incasso'||Object.values(S.draft.ris).some(r=>r&&r.e>0);
+function totRis(){const v=sumSer(S.draft);$('#sT').textContent=v.b;$('#sV').textContent=v.t;$('#sE').textContent=eur(v.e);$('#sEw').hidden=!incAttivo();$('#sN').textContent=Object.keys(S.draft.ris).length}
 function listaRis(){const q=norm(S.rq),r=S.draft.ris;
-  const inp=(id,k,n)=>{const v=R(S.draft,id)[k];return `<input type="number" inputmode="numeric" min="0" data-r="${id}" data-k="${k}" value="${v||''}" placeholder="0" aria-label="${k==='b'?'Biglietti':'Tavoli'} di ${esc(n)}">`};
-  const head=`<div class="rr" style="position:sticky;top:0;background:var(--bg);z-index:1;font-size:13px;color:var(--mute);font-weight:600"><span>PR</span><span style="text-align:right">Biglietti</span><span style="text-align:right">Tavoli</span></div>`;
+  const inc=incAttivo(),cl=inc?' inc':'';
+  const inp=(id,k,n)=>{const v=R(S.draft,id)[k];return k==='e'?`<input type="text" inputmode="decimal" data-r="${id}" data-k="e" value="${v?String(v/100).replace('.',','):''}" placeholder="€ 0" aria-label="Incasso tavoli di ${esc(n)}">`:`<input type="number" inputmode="numeric" min="0" data-r="${id}" data-k="${k}" value="${v||''}" placeholder="0" aria-label="${k==='b'?'Biglietti':'Tavoli'} di ${esc(n)}">`};
+  const cells=(id,n)=>inp(id,'b',n)+inp(id,'t',n)+(inc?inp(id,'e',n):'');
+  const head=`<div class="rr${cl}" style="position:sticky;top:0;background:var(--bg);z-index:1;font-size:13px;color:var(--mute);font-weight:600"><span>PR</span><span style="text-align:right">Biglietti</span><span style="text-align:right">Tavoli</span>${inc?'<span style="text-align:right">Incasso tav. €</span>':''}</div>`;
   const l=[...S.pr].filter(p=>!q||norm(nome(p)).includes(q)).sort((a,b)=>(r[b.id]?1:0)-(r[a.id]?1:0)||sortNome(a,b));
   const orfani=Object.keys(r).filter(k=>!byId(k));
-  $('#rl').innerHTML=(l.length||orfani.length)?head+l.map(p=>`<div class="rr ${r[p.id]?'has':''}"><span>${esc(nome(p))} <span class="note" style="display:inline">${RUOLI[p.ruolo]}${p.parent?' · '+esc(nome(byId(p.parent))):''}</span></span>${inp(p.id,'b',nome(p))}${inp(p.id,'t',nome(p))}</div>`).join('')+orfani.map(k=>`<div class="rr has"><span>PR eliminato</span>${inp(k,'b','PR eliminato')}${inp(k,'t','PR eliminato')}</div>`).join('')
+  $('#rl').innerHTML=(l.length||orfani.length)?head+l.map(p=>`<div class="rr${cl} ${r[p.id]?'has':''}"><span>${esc(nome(p))} <span class="note" style="display:inline">${RUOLI[p.ruolo]}${p.parent?' · '+esc(nome(byId(p.parent))):''}</span></span>${cells(p.id,nome(p))}</div>`).join('')+orfani.map(k=>`<div class="rr${cl} has"><span>PR eliminato</span>${cells(k,'PR eliminato')}</div>`).join('')
     :'<p class="empty" style="padding:0 12px">Nessun PR in archivio con questo nome.</p>';totRis()}
 function applicaLista(){const idx=new Map();for(const p of S.pr){idx.set(norm(`${p.nome||''} ${p.cognome||''}`),p.id);idx.set(norm(`${p.cognome||''} ${p.nome||''}`),p.id)}
-  const no=[];let ok=0;for(const riga of $('#s-paste').value.split('\n')){const t=riga.trim();if(!t)continue;const m=t.match(/^(.*?)[\s;,:\t]+(\d+)(?:[\s;,:\t]+(\d+))?\s*$/);
+  const inc=misuraDi($('#s-fmt').value)==='incasso';
+  const no=[];let ok=0;for(const riga of $('#s-paste').value.split('\n')){const t=riga.trim();if(!t)continue;
+    if(inc){const mi=t.match(/^(.*?)[\s;:\t]+€?\s*([\d.]+(?:,\d{1,2})?)\s*€?\s*$/);const id=mi&&idx.get(norm(mi[1].replace(/[;:\t]/g,' ')));if(!id){no.push(mi?mi[1]:t);continue}setRis(id,{...R(S.draft,id),e:cent(mi[2])});ok++;continue}
+    const m=t.match(/^(.*?)[\s;,:\t]+(\d+)(?:[\s;,:\t]+(\d+))?\s*$/);
     const id=m&&idx.get(norm(m[1].replace(/[;,:\t]/g,' ')));if(!id){no.push(m?m[1]:t);continue}setRis(id,{b:parseInt(m[2],10),t:m[3]?parseInt(m[3],10):R(S.draft,id).t});ok++}
   listaRis();const msg=$('#sM');msg.className='msg'+(no.length?'':' ok');msg.textContent=`${ok} righe applicate.`+(no.length?` Non trovati in archivio: ${no.slice(0,8).join(', ')}${no.length>8?'…':''}`:'')}
 async function salvaSerata(id){const m=$('#sM');m.className='msg';const d={data:$('#s-data').value,nome:$('#s-nome').value.trim(),loc:($('#s-loc').value==='__new'?'':$('#s-loc').value)||null,fmt:($('#s-fmt').value==='__new'?'':$('#s-fmt').value)||null,ris:{}};
   if(!d.data){m.textContent='Inserisci la data della serata.';return}
-  for(const k of Object.keys(S.draft.ris)){const r=R(S.draft,k);if(r.b>=1||r.t>=1)d.ris[k]={b:r.b,t:r.t}}
+  for(const k of Object.keys(S.draft.ris)){const r=R(S.draft,k);if(r.b>=1||r.t>=1||r.e>0)d.ris[k]={b:r.b,t:r.t,e:r.e}}
   if(!S.db){m.textContent='Archivio non raggiungibile: impossibile salvare.';return}
   $('#sS').disabled=true;try{const c=S.db.collection('serate');await (id?c.doc(id):c.doc()).set(d);chiudi();toast('Serata salvata')}catch(e){m.textContent='Errore nel salvataggio: '+(e.message||e.code);$('#sS').disabled=false}}
 function openLoc(id){const l=S.loc.find(x=>x.id===id);if(!l)return;S.draft={k:'loc',id};
   $('#sheet').innerHTML=`<div class="row"><h2 class="sp">${l.tipo==='format'?'Format':'Locale'}</h2><button class="ghost" data-x="1">Chiudi</button></div>
-  <div class="form"><label>Nome<input id="e-nome" value="${esc(l.nome)}"></label>${l.tipo==='format'?`<label>Età minima del target<input id="e-eta" type="number" inputmode="numeric" min="6" max="99" value="${esc(l.eta_min||'')}" placeholder="es. 14"></label>`:''}</div>
+  <div class="form"><label>Nome<input id="e-nome" value="${esc(l.nome)}"></label>${l.tipo==='format'?`<label>Età minima del target<input id="e-eta" type="number" inputmode="numeric" min="6" max="99" value="${esc(l.eta_min||'')}" placeholder="es. 14"></label><label>Misura principale<select id="e-mis"><option value="persone" ${l.misura!=='incasso'?'selected':''}>Persone (TicketSMS + tavoli)</option><option value="incasso" ${l.misura==='incasso'?'selected':''}>Incasso tavoli (€)</option></select></label>`:''}</div>
   <p class="msg" id="eM"></p><div class="row"><button class="pri" id="eS">Salva</button></div>`;
-  $('#eS').onclick=async()=>{const b={nome:$('#e-nome').value.trim(),eta_min:l.tipo==='format'?$('#e-eta').value:null};
+  $('#eS').onclick=async()=>{const b={nome:$('#e-nome').value.trim(),eta_min:l.tipo==='format'?$('#e-eta').value:null,misura:l.tipo==='format'?$('#e-mis').value:null};
     try{await api('PUT','/api/locali/'+id,b);chiudi();toast('Salvato');await load()}catch(er){$('#eM').textContent=er.message}};
   $('#modal').classList.add('on');$('#e-nome').focus()}
 function chiudi(){$('#modal').classList.remove('on');S.draft=null}
@@ -436,14 +451,14 @@ document.addEventListener('click',async e=>{const th=e.target.closest('th[data-s
   else if(t.id==='lA'){const n=$('#lN').value.trim(),ty=$('#lT').value,eta=$('#lE').value;if(!n){$('#lM').textContent='Scrivi il nome.';return}
     if(ty==='format'&&!eta){$('#lM').textContent='Indica l\'età minima del format.';return}
     if(S.loc.some(l=>norm(l.nome)===norm(n)&&l.tipo===ty)){$('#lM').textContent='Esiste già.';return}
-    try{await api('POST','/api/locali',{nome:n,tipo:ty,eta_min:eta});toast('Aggiunto');await load()}catch(er){$('#lM').textContent='Errore: '+(er.message||er.code)}}
+    try{await api('POST','/api/locali',{nome:n,tipo:ty,eta_min:eta,misura:$('#lMis').value});toast('Aggiunto');await load()}catch(er){$('#lM').textContent='Errore: '+(er.message||er.code)}}
   else if(d.dl){const u=S.ser.filter(s=>s.loc===d.dl||s.fmt===d.dl).length;if(u){$('#lM').textContent=`Usato in ${u} serate: non si può eliminare.`;return}
     if(!t.dataset.c){t.dataset.c=1;t.textContent='Elimina?';return}try{await S.db.collection('locali').doc(d.dl).delete();toast('Eliminato')}catch(er){$('#lM').textContent='Errore: '+(er.message||er.code)}}});
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')chiudi()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').classList.contains('on'))chiudi()});
 const upd=()=>{$('#tb').innerHTML=righe();const c=$('#cnt');if(c)c.textContent=`${filtrati().length} di ${S.pr.length} persone`};
 document.addEventListener('input',e=>{const id=e.target.id;if(id==='q'){S.q=e.target.value;upd()}});
-document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}else if(id==='lT'){$('#lE').hidden=e.target.value!=='format'}else if(id==='clS'){S.clS=e.target.value;render()}else if(id==='clF'){S.rep=e.target.value;S.repPr='';render()}});
+document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}else if(id==='lT'){$('#lE').hidden=$('#lMis').hidden=e.target.value!=='format'}else if(id==='clS'){S.clS=e.target.value;render()}else if(id==='clF'){S.rep=e.target.value;S.repPr='';render()}});
 window.addEventListener('hashchange',render);
 
 /* ---------- dati (API del sito) ---------- */

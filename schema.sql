@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS locali (
   id TEXT PRIMARY KEY,
   nome TEXT NOT NULL,
   tipo TEXT NOT NULL CHECK (tipo IN ('locale','format')),
-  eta_min INTEGER
+  eta_min INTEGER,
+  misura TEXT -- solo format: 'persone' o 'incasso'
 );
 CREATE TABLE IF NOT EXISTS serate (
   id TEXT PRIMARY KEY,
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS risultati (
   persona_id TEXT NOT NULL,
   b INTEGER NOT NULL DEFAULT 0,
   t INTEGER NOT NULL DEFAULT 0,
+  e INTEGER NOT NULL DEFAULT 0, -- incasso tavoli in centesimi
   PRIMARY KEY (serata_id, persona_id)
 );
 CREATE INDEX IF NOT EXISTS risultati_persona ON risultati(persona_id);
