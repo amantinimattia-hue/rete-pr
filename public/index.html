@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Happy.PR</title>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<meta name="theme-color" content="#141414">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Happy.PR">
+<link rel="apple-touch-icon" href="__ICONA192__">
+<link rel="icon" href="__ICONA192__">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Unbounded:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -29,6 +36,8 @@ header h1{margin:0;font:900 24px/1 Unbounded,"DM Sans",sans-serif;text-transform
 .fdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
 .dot{display:inline-block;width:.35em;height:.35em;border-radius:50%;background:#FF5A1F;margin:0 .09em;vertical-align:baseline}
 header p{margin:5px 0 0;font-size:12.5px;font-weight:500;color:#C9C0B5}header p a{color:#FF7A45;font-weight:700}
+#inst{background:none;border:1px solid #4A4440;color:#FFF5E6;min-height:32px;font-size:13px;border-radius:99px;padding:0 12px}
+#inst:hover{border-color:#FF5A1F;color:#FF5A1F}
 nav{display:flex;gap:4px;overflow-x:auto;background:#262321;padding:4px;border-radius:12px;margin-left:auto}
 nav a{flex:none;color:#FFF5E6;text-decoration:none;padding:7px 14px;border-radius:9px;font-weight:700;font-size:14px}
 nav a.on{background:#FF5A1F;color:#141414}
@@ -123,6 +132,7 @@ details>summary{cursor:pointer}
 <body>
 <header><div class="hd">
   <div><h1 aria-label="Happy.PR">HAPPY<span class="dot"></span>PR</h1><p id="who">Il tool della rete PR di HAPPY.FAM</p></div>
+  <button id="inst" hidden>Installa l'app</button>
   <nav id="nav">
     <a href="#archivio" data-v="archivio">Archivio</a>
     <a href="#struttura" data-v="struttura">Struttura</a>
@@ -397,6 +407,7 @@ function vAccessi(){const st=S.pr.filter(p=>p.ruolo==='staff').sort(sortNome);
 function render(){const v=view();for(const a of document.querySelectorAll('#nav a'))a.classList.toggle('on',a.dataset.v===v);
   if(!S.me){if(!S.got.pr)return;$('#main').innerHTML='<p class="empty">Dati non disponibili.</p>';return}
   const ad=S.me.ruolo==='admin';for(const a of document.querySelectorAll('#nav a[data-adm]'))a.hidden=!ad;
+  $('#inst').hidden=!S.inst;
   $('#who').innerHTML=`${esc(S.me.email)}${ad?' · amministratore':' · capo staff'} · <a href="/cdn-cgi/access/logout">Esci</a>`;
   if(!ad&&(v==='serate'||v==='accessi')){location.hash='archivio';return}
   const fo=document.activeElement,fid=fo&&fo.id&&$('#main').contains(fo)?fo.id:null,sel=fid&&fo.selectionStart!=null?[fo.selectionStart,fo.selectionEnd]:null;
@@ -513,6 +524,7 @@ document.addEventListener('click',async e=>{const th=e.target.closest('th[data-s
   if(d.pg){location.hash='persona-'+d.pg;scrollTo(0,0)}else if(d.back){if(history.length>1)history.back();else location.hash='archivio'}else if(d.ed)openPR(d.ed);else if(d.new)openPR(null);else if(d.ns)openSerata(null);else if(d.es)openSerata(d.es);else if(d.x)chiudi();
   else if(d.rp){S.rep=d.rp;S.repPr='';render()}else if(d.cl){S.clT=d.cl;render()}else if(d.pt){S.ptT=d.pt;render()}else if(d.tp){S.repPr=d.tp;render();$('#rpP')?.scrollIntoView({block:'center'})}
   else if(t.id==='clr'){S.q=S.fR=S.fS=S.fZ='';render()}
+  else if(t.id==='inst'){const p=S.inst;if(!p)return;S.inst=null;t.hidden=true;p.prompt()}
   else if(t.id==='iA'){t.disabled=true;try{await api('PUT','/api/impostazioni',{stagione_inizio:$('#iS').value,punti_persone:$('#iP').value,punti_euro:$('#iE').value,punti_segno:$('#iB').value});toast('Impostazioni salvate');await load()}catch(er){$('#iM').textContent=er.message;t.disabled=false}}
   else if(t.id==='aA'){const em=$('#aE').value.trim(),pid=$('#aP').value;if(!em||!pid){$('#aM').textContent='Scrivi l\'email e scegli il capo staff.';return}
     t.disabled=true;try{await api('POST','/api/utenti',{email:em,persona_id:pid});toast('Accesso abilitato');await load()}catch(er){$('#aM').textContent=er.message;t.disabled=false}}
@@ -544,6 +556,10 @@ async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!=
 S.db={collection:c=>({doc:id=>({set:async d=>{await api(id?'PUT':'POST',`/api/${MAP[c]}${id?'/'+id:''}`,d);await load()},
   delete:async()=>{await api('DELETE',`/api/${MAP[c]}/${id}`);await load()}})})};
 window.addEventListener('focus',()=>{if(!$('#modal').classList.contains('on'))load()});
+// app installabile: il service worker non tiene dati, serve solo all'installazione e alla pagina offline
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();S.inst=e;render()});
+addEventListener('appinstalled',()=>{S.inst=null;toast('Happy.PR installata')});
 load();
 render();
 }

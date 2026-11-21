@@ -3,9 +3,17 @@
 // e si decide chi è admin (ADMIN_EMAILS) e quale capo staff corrisponde a ogni email (tabella utenti).
 
 const HTML = "__HTML__";
-const VER = "__VER__"; // versione della pagina: se il browser ha una pagina vecchia, la ricarica prima di salvare
+const VER = "__VER__";
+const ICONE = "__ICONE__"; // icone dell'app, inline: così restano leggibili anche dietro Cloudflare Access // versione della pagina: se il browser ha una pagina vecchia, la ricarica prima di salvare
 
 const RUOLI = ['staff', 'capo', 'pr'];
+
+// Service worker: nessun dato viene messo in cache, solo una pagina di cortesia quando manca la rete.
+const SW = `const V='${'__VER__'}',C='happy-pr-'+V;
+const OFF='<!DOCTYPE html><html lang=it><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Happy.PR</title><body style="margin:0;background:#141414;color:#FFF5E6;font:16px/1.5 system-ui;display:grid;place-items:center;height:100vh;text-align:center"><div><p style="font:800 28px system-ui;margin:0 0 8px">HAPPY<span style="color:#FF5A1F">.</span>PR</p><p>Manca la connessione.<br>Riprova quando torni online.</p></div>';
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.put('/offline',new Response(OFF,{headers:{'content-type':'text/html; charset=utf-8'}}))).then(()=>self.skipWaiting()))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',e=>{if(e.request.mode!=='navigate')return;e.respondWith(fetch(e.request).catch(()=>caches.open(C).then(c=>c.match('/offline'))))});`;
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const err = (m, s = 400) => json({ error: m }, s);
 const SEC = { 'x-frame-options': 'DENY', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff' };
@@ -293,6 +301,22 @@ export default {
       try { return await api(req, env, me, url.pathname.slice(5)); }
       catch (e) { return err('Errore del server: ' + (e && e.message || e), 500); }
     }
+    if (url.pathname === '/manifest.webmanifest') return new Response(JSON.stringify({
+      name: 'Happy.PR', short_name: 'Happy.PR', description: 'Il tool della rete PR di HAPPY.FAM',
+      start_url: '/', scope: '/', display: 'standalone', orientation: 'any',
+      background_color: '#FFF5E6', theme_color: '#141414', lang: 'it', dir: 'ltr',
+      icons: [
+        { src: ICONE.i192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: ICONE.i512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: ICONE.imask, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+      shortcuts: [
+        { name: 'Report', url: '/#report' },
+        { name: 'Classifica a punti', url: '/#punti' },
+        { name: 'Serate', url: '/#serate' },
+      ],
+    }), { headers: { 'content-type': 'application/manifest+json; charset=utf-8', 'cache-control': 'no-store' } });
+    if (url.pathname === '/sw.js') return new Response(SW, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store', ...SEC } });
     return page(HTML);
   },
 };
