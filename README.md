@@ -1,4 +1,4 @@
-# Rete PR
+# Happy.PR
 
 Gestionale della rete PR (archivio, struttura dello staff, serate, report) su Cloudflare Workers + D1, con accesso tramite Cloudflare Access (PIN via email).
 
