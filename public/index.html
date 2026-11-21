@@ -410,12 +410,14 @@ document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].
 window.addEventListener('hashchange',render);
 
 /* ---------- dati (API del sito) ---------- */
+const VER='__VER__';
 const MAP={pr:'persone',locali:'locali',serate:'serate'};
-async function api(m,u,b){const r=await fetch(u,{method:m,headers:{'content-type':'application/json'},body:b?JSON.stringify(b):undefined,credentials:'same-origin'});
+async function api(m,u,b){const r=await fetch(u,{method:m,headers:{'content-type':'application/json','x-ver':VER},body:b?JSON.stringify(b):undefined,credentials:'same-origin'});
   let j={};try{j=await r.json()}catch(_){}
   if(r.status===401||r.redirected&&!r.url.includes('/api/')){location.reload();throw {message:'Sessione scaduta'}}
+  if(j.reload){toast(j.error);setTimeout(()=>location.reload(),1500)}
   if(!r.ok)throw {message:j.error||('Errore '+r.status)};return j}
-async function load(){try{const d=await api('GET','/api/data');S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.got={pr:1,loc:1,ser:1};banner('');
+async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!==VER&&!S.me){location.reload();return}S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.got={pr:1,loc:1,ser:1};banner(d.ver&&d.ver!==VER?'È disponibile una versione nuova del sito: ricarica la pagina.':'');
   render();if(S.draft&&S.draft.k==='ser')listaRis()}catch(e){banner('Impossibile caricare i dati: '+(e.message||e));S.got={pr:1,loc:1,ser:1};render()}}
 S.db={collection:c=>({doc:id=>({set:async d=>{await api(id?'PUT':'POST',`/api/${MAP[c]}${id?'/'+id:''}`,d);await load()},
   delete:async()=>{await api('DELETE',`/api/${MAP[c]}/${id}`);await load()}})})};

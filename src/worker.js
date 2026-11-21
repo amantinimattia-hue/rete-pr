@@ -3,6 +3,7 @@
 // e si decide chi è admin (ADMIN_EMAILS) e quale capo staff corrisponde a ogni email (tabella utenti).
 
 const HTML = "__HTML__";
+const VER = "__VER__"; // versione della pagina: se il browser ha una pagina vecchia, la ricarica prima di salvare
 
 const RUOLI = ['staff', 'capo', 'pr'];
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -84,6 +85,7 @@ async function api(req, env, me, path) {
   const m = req.method, seg = path.split('/').filter(Boolean); // es. ['persone', 'id']
   const admin = me.ruolo === 'admin';
   if (m !== 'GET' && !(req.headers.get('content-type') || '').includes('application/json')) return err('Richiesta non valida', 415);
+  if (m !== 'GET' && req.headers.get('x-ver') !== VER) return json({ error: 'Il sito è stato aggiornato: ricarico la pagina, poi riprova.', reload: true }, 409);
   const body = m === 'POST' || m === 'PUT' ? await req.json().catch(() => ({})) : {};
 
   if (m === 'GET' && seg[0] === 'data') {
@@ -94,7 +96,7 @@ async function api(req, env, me, path) {
     const mappa = {};
     for (const r of ris.results) if (!vis || vis.has(r.persona_id)) (mappa[r.serata_id] ||= {})[r.persona_id] = { b: r.b, t: r.t };
     const out = {
-      me, persone: vis ? persone.filter(p => vis.has(p.id)) : persone, locali: loc.results,
+      ver: VER, me, persone: vis ? persone.filter(p => vis.has(p.id)) : persone, locali: loc.results,
       serate: ser.results.map(s => ({ ...s, ris: mappa[s.id] || {} })),
     };
     if (admin) out.utenti = (await env.DB.prepare('SELECT * FROM utenti ORDER BY email').all()).results;
