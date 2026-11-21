@@ -111,8 +111,8 @@ async function classificaPunti(env, me, admin, filtro) {
   // (anche fuori stagione, per il confronto); si contano solo le serate della stagione e del filtro
   const gruppi = {}; for (const s of serR.results) (gruppi[s.fmt || ''] ||= []).push(s);
   for (const l of Object.values(gruppi)) l.forEach((s, i) => {
-    if (!conta(s)) return;
     const prev = l.slice(Math.max(0, i - 2), i);
+    if (!conta(s) || !prev.length) return; // la prima serata di un format non conta come andata a segno
     for (const pid of Object.keys(perSerata[s.id] || {})) {
       const v = val(s, pid), best = Math.max(0, ...prev.map(p => val(p, pid)));
       if (v > best) segni[pid] = (segni[pid] || 0) + 1;

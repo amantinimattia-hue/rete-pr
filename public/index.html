@@ -161,12 +161,14 @@ const EUR2=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimu
 const eur=c=>((c||0)%100?EUR2:EUR).format((c||0)/100); // incasso salvato in centesimi
 const cent=v=>{const n=parseFloat(String(v||'').replace(/\s|€/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));return Number.isFinite(n)&&n>0?Math.round(n*100):0};
 /* PR "a segno": fa più del migliore dei suoi risultati nelle 2 serate precedenti dello stesso format
-   (con meno serate precedenti si confronta con quelle che ci sono; alla prima basta almeno 1).
+   (con una sola serata precedente il confronto è con quella; nella prima serata di un format nessuno va a segno).
    Format a persone: TicketSMS + tavoli; format a incasso: incasso. */
 const valSegno=(s,id)=>{const r=R(s,id);return misuraDi(s.fmt)==='incasso'?r.e:r.b+r.t};
 function calcSegno(){const g={},m=new Map();for(const s of serOrd())(g[s.fmt||'']||=[]).push(s);
   for(const l of Object.values(g))l.forEach((s,i)=>{const prev=l.slice(Math.max(0,i-2),i),set=new Set();
-    for(const id of Object.keys(s.ris||{})){const v=valSegno(s,id),best=Math.max(0,...prev.map(p=>valSegno(p,id)));if(v>best)set.add(id)}m.set(s.id,set)});
+    // senza almeno una serata precedente dello stesso format non si va a segno
+    if(prev.length)for(const id of Object.keys(s.ris||{})){const v=valSegno(s,id),best=Math.max(0,...prev.map(p=>valSegno(p,id)));if(v>best)set.add(id)}
+    m.set(s.id,set)});
   return m}
 const segno=s=>(S.segno&&S.segno.get(s.id))||new Set();
 const misuraDi=fid=>S.loc.find(l=>l.id===fid)?.misura==='incasso'?'incasso':'persone';
@@ -298,11 +300,12 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   <div class="kpis"><div class="kpi"><b>${ser.length}</b><span>serate</span></div><div class="kpi"><b>${tot.b}</b><span>biglietti TicketSMS</span></div>
   <div class="kpi"><b>${tot.t}</b><span>tavoli</span></div><div class="kpi"><b>${ser.length?m1((tot.b+tot.t)/ser.length):'0'}</b><span>persone medie a serata (TicketSMS + tavoli)</span></div>
   <div class="kpi"><b>${new Set(ser.flatMap(s=>[...segno(s)])).size}</b><span>PR andati a segno almeno una volta</span></div>
+  <div class="kpi" style="border-top-color:var(--acct)"><b>${ser.reduce((n,s)=>n+segno(s).size,0)}</b><span>volte a segno in totale</span></div>
   <div class="kpi"><b>${best?best.v:0}</b><span>biglietti nella serata migliore${best?' · '+fmtD(best.s.data):''}</span></div>
   ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eur(tot.e)}</b><span>incasso tavoli</span></div><div class="kpi" style="border-top-color:var(--or)"><b>${eur(serInc?tot.e/serInc:0)}</b><span>incasso medio a serata (serate con incasso)</span></div>`:''}</div>
   <div class="grid3"><div class="card"><h3>Biglietti per serata</h3>${colChart('b',ser.map(s=>pt(s,sumSer(s).b)))}</div>
   <div class="card"><h3>Tavoli per serata</h3>${colChart('t',ser.map(s=>pt(s,sumSer(s).t)))}</div>
-  <div class="card"><h3>PR andati a segno per serata</h3><p class="note" style="margin:-4px 0 4px">Hanno superato il loro miglior risultato delle 2 serate precedenti dello stesso format</p>${colChart('a',ser.map(s=>pt(s,segno(s).size)))}</div>
+  <div class="card"><h3>PR andati a segno per serata</h3><p class="note" style="margin:-4px 0 4px">Hanno superato il loro miglior risultato delle 2 serate precedenti dello stesso format. La prima serata di un format non conta.</p>${colChart('a',ser.map(s=>pt(s,segno(s).size)))}</div>
   ${inc?`<div class="card"><h3>Incasso tavoli per serata (€)</h3>${colChart('e',ser.map(s=>pt(s,Math.round(sumSer(s).e/100))))}</div>`:''}</div>
   ${classifica(ser,loc,fm)}
   <div class="grid2">
