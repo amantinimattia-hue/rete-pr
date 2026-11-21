@@ -39,10 +39,12 @@ h3{font-size:14px;margin:0 0 8px;font-weight:700}
 .top{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 14px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .sp{flex:1}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:0 0 12px}
-.kpi{background:var(--panel);border-radius:10px;padding:8px 12px;border-top:3px solid var(--or)}
-.kpi b{display:block;font:800 21px/1.2 Unbounded,"DM Sans",sans-serif;font-variant-numeric:tabular-nums}
-.kpi span{color:var(--mute);font-size:12.5px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(clamp(84px,7.4vw,116px),1fr));gap:6px;margin:0 0 12px}
+.kpi{background:var(--panel);border-radius:10px;padding:7px 9px;border-top:3px solid var(--or);min-width:0}
+.kpi b{display:block;font:800 clamp(15px,1.5vw,20px)/1.15 Unbounded,"DM Sans",sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi b.m{font-size:clamp(13px,1.25vw,16px)}
+.kpi b.s{font-size:clamp(11px,1.05vw,13.5px)}
+.kpi span{color:var(--mute);font-size:11.5px;line-height:1.25;display:block}
 .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;margin:0 0 12px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:10px;margin:0 0 12px}
 .card{background:var(--panel);border-radius:12px;padding:10px 12px}
@@ -158,6 +160,7 @@ const R=(s,id)=>{const x=(s.ris||{})[id];return typeof x==='number'?{b:x,t:0,e:0
 const add=(a,r)=>(a.b+=r.b,a.t+=r.t,a.e=(a.e||0)+(r.e||0),a);
 const EUR=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
 const EUR2=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2});
+const eurT=c=>EUR.format(Math.round((c||0)/100)); // nei riquadri: euro tondi, senza centesimi
 const eur=c=>((c||0)%100?EUR2:EUR).format((c||0)/100); // incasso salvato in centesimi
 const cent=v=>{const n=parseFloat(String(v||'').replace(/\s|€/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));return Number.isFinite(n)&&n>0?Math.round(n*100):0};
 /* PR "a segno": fa più del migliore dei suoi risultati nelle 2 serate precedenti dello stesso format
@@ -302,7 +305,7 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   <div class="kpi"><b>${new Set(ser.flatMap(s=>[...segno(s)])).size}</b><span>PR andati a segno almeno una volta</span></div>
   <div class="kpi" style="border-top-color:var(--acct)"><b>${ser.reduce((n,s)=>n+segno(s).size,0)}</b><span>volte a segno in totale</span></div>
   <div class="kpi"><b>${best?best.v:0}</b><span>biglietti nella serata migliore${best?' · '+fmtD(best.s.data):''}</span></div>
-  ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eur(tot.e)}</b><span>incasso tavoli</span></div><div class="kpi" style="border-top-color:var(--or)"><b>${eur(serInc?tot.e/serInc:0)}</b><span>incasso medio a serata (serate con incasso)</span></div>`:''}</div>
+  ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eurT(tot.e)}</b><span>incasso tavoli</span></div><div class="kpi" style="border-top-color:var(--or)"><b>${eurT(serInc?tot.e/serInc:0)}</b><span>incasso medio a serata (serate con incasso)</span></div>`:''}</div>
   <div class="grid3"><div class="card"><h3>Biglietti per serata</h3>${colChart('b',ser.map(s=>pt(s,sumSer(s).b)))}</div>
   <div class="card"><h3>Tavoli per serata</h3>${colChart('t',ser.map(s=>pt(s,sumSer(s).t)))}</div>
   <div class="card"><h3>PR andati a segno per serata</h3><p class="note" style="margin:-4px 0 4px">Hanno superato il loro miglior risultato delle 2 serate precedenti dello stesso format. La prima serata di un format non conta.</p>${colChart('a',ser.map(s=>pt(s,segno(s).size)))}</div>
@@ -353,7 +356,7 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   ${capo?`<div class="kpi"><b>${segs[0].tot.b} · ${segs[0].tot.t}</b><span>personali (bigl. · tav.)</span></div>`:''}
   <div class="kpi"><b>${conRis?m1((tot.b+tot.t)/conRis):'0'}</b><span>persone medie nelle serate attive (TicketSMS + tavoli)</span></div>
   <div class="kpi"><b>${best&&best.v?best.v:0}</b><span>miglior serata${best&&best.v?' · '+fmtD(best.s.data):''}</span></div>
-  ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eur(tot.e)}</b><span>incasso tavoli${capo?' del ramo':''}${capo&&segs[0].tot.e?' · personale '+eur(segs[0].tot.e):''}</span></div>`:''}</div>
+  ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eurT(tot.e)}</b><span>incasso tavoli${capo?' del ramo':''}${capo&&segs[0].tot.e?' · personale '+eur(segs[0].tot.e):''}</span></div>`:''}</div>
   ${legend}
   <div class="grid2"><div class="card"><h3>Biglietti per serata${capo?' · totale e parziali':''}</h3>${chart('qb','b')}</div><div class="card"><h3>Tavoli per serata${capo?' · totale e parziali':''}</h3>${chart('qt','t')}</div>${inc?`<div class="card"><h3>Incasso tavoli per serata (€)${capo?' · totale e parziali':''}</h3>${chart('qe','e')}</div>`:''}</div>
   ${capo?`<div class="card"><h3>${p.ruolo==='staff'?'Gruppi e PR collegati':'PR collegati'}</h3><div class="tbl s"><table><thead><tr><th></th><th>Nome</th><th>Ruolo</th><th class="n">Serate attive</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">% persone ramo</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>
@@ -398,6 +401,7 @@ function render(){const v=view();for(const a of document.querySelectorAll('#nav 
   if(!ad&&(v==='serate'||v==='accessi')){location.hash='archivio';return}
   const fo=document.activeElement,fid=fo&&fo.id&&$('#main').contains(fo)?fo.id:null,sel=fid&&fo.selectionStart!=null?[fo.selectionStart,fo.selectionEnd]:null;
   S.charts={};$('#main').innerHTML=({archivio:vArchivio,struttura:vStruttura,serate:vSerate,report:vReport,persona:vPersona,punti:vPunti,accessi:vAccessi})[v]();draw();if(v==='archivio')upd();
+  for(const e of document.querySelectorAll('#main .kpi>b')){const n=e.textContent.trim().length;e.className=n>8?'s':n>5?'m':''}
   if(fid){const e=document.getElementById(fid);if(e){e.focus();if(sel&&e.setSelectionRange)try{e.setSelectionRange(...sel)}catch(_){}}}}
 
 /* ---------- scheda persona ---------- */
