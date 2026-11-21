@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS persone (
   nome TEXT, cognome TEXT, anno INTEGER, scuola TEXT, zona TEXT, tel TEXT, note TEXT,
   ruolo TEXT NOT NULL CHECK (ruolo IN ('staff','capo','pr')),
   parent TEXT,
+  no_stat INTEGER NOT NULL DEFAULT 0, -- fuori dai grafici di anno, scuola e zona
   creato_da TEXT,
   aggiornato TEXT
 );

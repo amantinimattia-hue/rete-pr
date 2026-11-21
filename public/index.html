@@ -194,7 +194,7 @@ const view=()=>{const h=location.hash.slice(1);return h.startsWith('persona-')?'
 /* ---------- grafici ---------- */
 const bars=(rows)=>{if(!rows.length)return '<p class="empty">Nessun dato</p>';const m=Math.max(...rows.map(r=>r[1]),1);
   return rows.map(([k,v])=>`<div class="bar"><span class="bl" title="${esc(k)}">${esc(k)}</span><span class="bt"><i style="width:${(v/m*100).toFixed(1)}%"></i></span><b>${v}</b></div>`).join('')};
-const gruppo=(f,sortKey)=>{const m=new Map();let nd=0;for(const p of S.pr){const v=String(p[f]??'').trim();if(!v){nd++;continue}m.set(v,(m.get(v)||0)+1)}
+const gruppo=(f,sortKey)=>{const m=new Map();let nd=0;for(const p of S.pr){if(p.no_stat)continue;const v=String(p[f]??'').trim();if(!v){nd++;continue}m.set(v,(m.get(v)||0)+1)}
   let r=[...m];r.sort(sortKey?(a,b)=>a[0].localeCompare(b[0]):(a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'it'));
   if(!sortKey&&r.length>12){const alt=r.slice(11).reduce((t,x)=>t+x[1],0);r=r.slice(0,11).concat([['Altre',alt]])}
   if(nd)r.push(['Non indicato',nd]);return r};
@@ -425,7 +425,8 @@ function openPR(id){const p=id?byId(id):{ruolo:'pr'};if(!p)return;S.draft={k:'pr
   <label>Ruolo<select id="p-ruolo" ${self?'disabled':''}>${Object.entries(self?RUOLI:RO).map(([k,v])=>`<option value="${k}" ${k===p.ruolo?'selected':''}>${v}</option>`).join('')}</select></label>
   <label>Superiore<select id="p-parent"></select></label>
   ${f('anno','Anno di nascita','number')}${f('tel','Telefono','tel')}${f('scuola','Scuola')}${f('zona','Zona')}
-  <label class="w">Note<textarea id="p-note">${esc(p.note||'')}</textarea></label></div>${dl('scuola')}${dl('zona')}
+  <label class="w">Note<textarea id="p-note">${esc(p.note||'')}</textarea></label>
+  <label class="w" style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="p-nostat" ${p.no_stat?'checked':''} style="width:auto;min-height:0;margin:0"> Fuori dai grafici di anno, scuola e zona (per chi organizza, non per i PR)</label></div>${dl('scuola')}${dl('zona')}
   ${id?`<p class="note">Totale: ${BT(vend(id,S.ser))} in ${S.ser.filter(s=>(s.ris||{})[id]).length} serate</p>`:''}
   <p class="msg" id="pM"></p><div class="row"><button class="pri" id="pS">Salva</button>${id&&!self?'<span class="sp"></span><button class="danger" id="pD">Elimina</button>':''}</div>`;
   const fill=()=>{const r=$('#p-ruolo').value,cur=$('#p-parent').dataset.v??p.parent??'';
@@ -437,7 +438,7 @@ function openPR(id){const p=id?byId(id):{ruolo:'pr'};if(!p)return;S.draft={k:'pr
   $('#pS').onclick=()=>salvaPR(id);if(id&&!self)$('#pD').onclick=e=>eliminaPR(id,e.target);
   $('#modal').classList.add('on');$('#p-nome').focus()}
 async function salvaPR(id){const g=k=>$('#p-'+k).value.trim(),m=$('#pM');
-  const d={nome:g('nome'),cognome:g('cognome'),ruolo:$('#p-ruolo').value,parent:$('#p-parent').value||null,anno:g('anno')?parseInt(g('anno'),10):null,tel:g('tel'),scuola:g('scuola'),zona:g('zona'),note:$('#p-note').value.trim()};
+  const d={nome:g('nome'),cognome:g('cognome'),ruolo:$('#p-ruolo').value,parent:$('#p-parent').value||null,no_stat:$('#p-nostat').checked?1:0,anno:g('anno')?parseInt(g('anno'),10):null,tel:g('tel'),scuola:g('scuola'),zona:g('zona'),note:$('#p-note').value.trim()};
   if(!d.nome&&!d.cognome){m.textContent='Serve almeno il nome o il cognome.';return}
   if(d.anno!=null&&(isNaN(d.anno)||d.anno<1950||d.anno>2025)){m.textContent='Anno di nascita non valido.';return}
   if(id){const f=figli(id);if(d.ruolo==='pr'&&f.length){m.textContent=`Ha ${f.length} persone collegate: spostale prima di farlo diventare PR.`;return}

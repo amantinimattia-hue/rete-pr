@@ -69,6 +69,7 @@ function pulisci(b) {
     nome: txt(b.nome, 80), cognome: txt(b.cognome, 80), anno: Number.isFinite(anno) ? anno : null,
     scuola: txt(b.scuola, 120), zona: txt(b.zona, 120), tel: txt(b.tel, 40), note: txt(b.note, 1000),
     ruolo: RUOLI.includes(b.ruolo) ? b.ruolo : 'pr', parent: b.parent ? txt(b.parent, 40) : null,
+    no_stat: b.no_stat ? 1 : 0, // fuori dai grafici di anno, scuola e zona
   };
 }
 // Regole dell'albero, uguali per tutti
@@ -201,10 +202,10 @@ async function api(req, env, me, path) {
       }
       const e = controllaAlbero(d, id, persone); if (e) return err(e);
       const nid = id || uid(), ora = new Date().toISOString();
-      if (id) await env.DB.prepare('UPDATE persone SET nome=?,cognome=?,anno=?,scuola=?,zona=?,tel=?,note=?,ruolo=?,parent=?,aggiornato=? WHERE id=?')
-        .bind(d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, ora, id).run();
-      else await env.DB.prepare('INSERT INTO persone (id,nome,cognome,anno,scuola,zona,tel,note,ruolo,parent,creato_da,aggiornato) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-        .bind(nid, d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, me.email, ora).run();
+      if (id) await env.DB.prepare('UPDATE persone SET nome=?,cognome=?,anno=?,scuola=?,zona=?,tel=?,note=?,ruolo=?,parent=?,no_stat=?,aggiornato=? WHERE id=?')
+        .bind(d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, d.no_stat, ora, id).run();
+      else await env.DB.prepare('INSERT INTO persone (id,nome,cognome,anno,scuola,zona,tel,note,ruolo,parent,no_stat,creato_da,aggiornato) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(nid, d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, d.no_stat, me.email, ora).run();
       return json({ ok: true, id: nid });
     }
   }
