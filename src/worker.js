@@ -63,17 +63,18 @@ function pulisci(b) {
 function controllaAlbero(d, id, persone) {
   if (!d.nome && !d.cognome) return 'Serve almeno il nome o il cognome.';
   if (d.anno != null && (d.anno < 1950 || d.anno > 2025)) return 'Anno di nascita non valido.';
-  if (d.ruolo === 'staff') d.parent = null;
   if (d.parent) {
     if (d.parent === id) return 'Una persona non può essere superiore di sé stessa.';
     const par = persone.find(p => p.id === d.parent); if (!par) return 'Superiore non trovato.';
+    if (id && ramo(persone, id).has(d.parent)) return 'Non puoi mettere una persona sotto qualcuno del suo stesso ramo.';
+    if (d.ruolo === 'staff' && par.ruolo !== 'staff') return 'Un Capo staff può stare solo sotto un altro Capo staff.';
     if (d.ruolo === 'capo' && par.ruolo !== 'staff') return 'Un Capo PR può stare solo sotto un Capo staff.';
     if (d.ruolo === 'pr' && par.ruolo === 'pr') return 'Un PR può stare solo sotto un Capo staff o un Capo PR.';
   }
   if (id) {
     const figli = persone.filter(p => p.parent === id);
     if (d.ruolo === 'pr' && figli.length) return `Ha ${figli.length} persone collegate: spostale prima di farlo diventare PR.`;
-    if (d.ruolo === 'capo' && figli.some(f => f.ruolo === 'capo')) return 'Ha dei Capi PR sotto di sé: spostali prima.';
+    if (d.ruolo === 'capo' && figli.some(f => f.ruolo !== 'pr')) return 'Ha Capi staff o Capi PR sotto di sé: spostali prima.';
   }
   return null;
 }
@@ -122,7 +123,6 @@ async function api(req, env, me, path) {
       if (!admin) {
         if (id === me.persona_id) { d.ruolo = esistente.ruolo; d.parent = esistente.parent; } // il capo staff può aggiornare solo i propri dati
         else {
-          if (d.ruolo === 'staff') return err('Solo l\'amministratore può creare Capi staff', 403);
           if (!d.parent || !vis.has(d.parent)) return err('Collega la persona a qualcuno del tuo ramo', 403);
         }
       }

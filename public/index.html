@@ -73,7 +73,7 @@ td .note.i{display:inline;margin-left:8px}td .note{display:block;max-width:28ch;
 .empty{color:var(--mute);font-size:13px;margin:4px 0}
 .tree{display:grid;gap:8px}
 .node{background:var(--panel);border-radius:12px;padding:8px 12px;border-left:4px solid var(--red)}
-.node>summary{list-style:none;cursor:pointer}.node>summary::-webkit-details-marker{display:none}
+.node .node{margin-top:6px;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--red)}.node>summary{list-style:none;cursor:pointer}.node>summary::-webkit-details-marker{display:none}
 .node>summary::before{content:"▸";color:var(--mute);margin-right:2px;display:inline-block;transition:transform .15s}
 .node[open]>summary::before{transform:rotate(90deg)}
 .node .c{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--yel);border-radius:10px;padding:6px 10px;margin-top:6px}
@@ -202,13 +202,15 @@ function vArchivio(){const c=k=>S.pr.filter(p=>p.ruolo===k).length;
 function vStruttura(){const ser=S.ser,T=id=>`<span class="tot">personali ${BT(vend(id,ser))}</span>`;
   const leaves=list=>list.length?`<div class="leaves">${list.sort(sortNome).map(p=>{const v=vend(p.id,ser);return `<span class="leaf"><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span title="biglietti · tavoli">${v.b} · ${v.t}</span></span>`}).join('')}</div>`:'';
   const capo=c=>{const pr=figli(c.id);return `<div class="c"><div class="nh"><span class="tag capo">Capo PR</span><button class="link" data-pg="${c.id}">${esc(nome(c))}</button><span class="sp"></span>${T(c.id)}<span class="tot">gruppo ${BT(team(c.id,ser))} · ${pr.length} PR</span></div>${leaves(pr)||'<p class="empty">Nessun PR collegato</p>'}</div>`};
-  const staff=S.pr.filter(p=>p.ruolo==='staff').sort(sortNome);
-  const cS=S.pr.filter(p=>p.ruolo==='capo'&&!p.parent).sort(sortNome),soli=S.pr.filter(p=>p.ruolo==='pr'&&!p.parent);
-  let h=`<div class="top"><div class="sp"><h2>Struttura dello staff</h2><p class="sub">Capo staff → Capo PR → PR. "Gruppo" e "staff" sommano tutto il ramo; sulle etichette biglietti · tavoli.</p></div><button class="pri" data-new="1">Nuova persona</button></div><div class="tree">`;
+  const top=p=>!p.parent||!byId(p.parent);
+  const staff=S.pr.filter(p=>p.ruolo==='staff'&&top(p)).sort(sortNome);
+  const cS=S.pr.filter(p=>p.ruolo==='capo'&&top(p)).sort(sortNome),soli=S.pr.filter(p=>p.ruolo==='pr'&&top(p));
+  const nodo=s=>{const f=figli(s.id),ss=f.filter(p=>p.ruolo==='staff').sort(sortNome),cp=f.filter(p=>p.ruolo==='capo').sort(sortNome),dir=f.filter(p=>p.ruolo==='pr');
+    return `<details class="node" open><summary class="nh"><span class="tag staff">Capo staff</span><button class="link" data-pg="${s.id}">${esc(nome(s))}</button><span class="sp"></span>${T(s.id)}<span class="tot">staff ${BT(team(s.id,ser))} · ${f.length} collegati</span></summary>
+    ${ss.map(nodo).join('')}${cp.map(capo).join('')}${dir.length?`<div class="c"><div class="nh"><b>PR diretti</b><span class="sp"></span><span class="tot">${dir.length} PR</span></div>${leaves(dir)}</div>`:''}${!f.length?'<p class="empty">Nessuno collegato</p>':''}</details>`};
+  let h=`<div class="top"><div class="sp"><h2>Struttura dello staff</h2><p class="sub">Capo staff (anche sotto un altro Capo staff) → Capo PR → PR. "Gruppo" e "staff" sommano tutto il ramo; sulle etichette biglietti · tavoli.</p></div><button class="pri" data-new="1">Nuova persona</button></div><div class="tree">`;
   if(!S.pr.length)h+='<p class="empty">Nessuno in archivio.</p>';
-  for(const s of staff){const f=figli(s.id),cp=f.filter(p=>p.ruolo==='capo').sort(sortNome),dir=f.filter(p=>p.ruolo==='pr');
-    h+=`<details class="node" open><summary class="nh"><span class="tag staff">Capo staff</span><button class="link" data-pg="${s.id}">${esc(nome(s))}</button><span class="sp"></span>${T(s.id)}<span class="tot">staff ${BT(team(s.id,ser))} · ${f.length} collegati</span></summary>
-    ${cp.map(capo).join('')}${dir.length?`<div class="c"><div class="nh"><b>PR diretti</b><span class="sp"></span><span class="tot">${dir.length} PR</span></div>${leaves(dir)}</div>`:''}${!f.length?'<p class="empty">Nessuno collegato</p>':''}</details>`}
+  h+=staff.map(nodo).join('');
   if(cS.length)h+=`<details class="node" open style="border-left-color:var(--yel)"><summary class="nh"><b>Capi PR senza capo staff</b></summary>${cS.map(capo).join('')}</details>`;
   if(soli.length)h+=`<details class="node" open style="border-left-color:var(--line)"><summary class="nh"><b>PR singoli</b><span class="sp"></span><span class="tot">${soli.length} PR</span></summary>${leaves(soli)}</details>`;
   return h+'</div>'}
@@ -268,7 +270,7 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   /* segmenti: risultati personali + collegati (per un capo staff, i Capi PR valgono con tutto il gruppo) */
   const segs=[{n:'Personali',id:null,ruolo:p.ruolo,f:s=>R(s,id)}];
   const f=figli(id).sort((a,b)=>ORD[a.ruolo]-ORD[b.ruolo]||sortNome(a,b));
-  for(const c of f)segs.push({n:nome(c)+(p.ruolo==='staff'&&c.ruolo==='capo'?' (gruppo)':''),id:c.id,ruolo:c.ruolo,f:c.ruolo==='capo'?(s=>team(c.id,[s])):(s=>R(s,c.id))});
+  for(const c of f)segs.push({n:nome(c)+(c.ruolo!=='pr'?' (gruppo)':''),id:c.id,ruolo:c.ruolo,f:c.ruolo!=='pr'?(s=>team(c.id,[s])):(s=>R(s,c.id))});
   for(const sg of segs){sg.tot=ser.reduce((a,s)=>add(a,sg.f(s)),{b:0,t:0});sg.ser=ser.filter(s=>{const r=sg.f(s);return r.b||r.t}).length}
   const attivi=segs.filter(sg=>sg.tot.b||sg.tot.t);let ci=0;for(const sg of segs)sg.c=sg.id===null?'var(--ink)':(sg.tot.b||sg.tot.t)?PAL[ci++%PAL.length]:'var(--line)';
   const tot=segs.reduce((a,sg)=>add(a,{...sg.tot}),{b:0,t:0});
@@ -315,7 +317,7 @@ function render(){const v=view();for(const a of document.querySelectorAll('#nav 
 
 /* ---------- scheda persona ---------- */
 function openPR(id){const p=id?byId(id):{ruolo:'pr'};if(!p)return;S.draft={k:'pr',id};
-  const ad=S.me&&S.me.ruolo==='admin',self=!ad&&id&&id===S.me.persona_id,RO=ad?RUOLI:{capo:'Capo PR',pr:'PR'};
+  const ad=S.me&&S.me.ruolo==='admin',self=!ad&&id&&id===S.me.persona_id,RO=RUOLI;
   const dl=(f)=>`<datalist id="d-${f}">${opts(f).map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
   const f=(k,lab,type='text',w='')=>`<label class="${w}">${lab}<input id="p-${k}" type="${type}" value="${esc(p[k]??'')}" ${k==='scuola'||k==='zona'?`list="d-${k}"`:''} ${type==='number'?'inputmode="numeric" min="1990" max="2020"':''}></label>`;
   $('#sheet').innerHTML=`<div class="row"><h2 class="sp">${id?esc(nome(p)):'Nuova persona'}</h2><button class="ghost" data-x="1">Chiudi</button></div>
@@ -327,9 +329,10 @@ function openPR(id){const p=id?byId(id):{ruolo:'pr'};if(!p)return;S.draft={k:'pr
   ${id?`<p class="note">Totale: ${BT(vend(id,S.ser))} in ${S.ser.filter(s=>(s.ris||{})[id]).length} serate</p>`:''}
   <p class="msg" id="pM"></p><div class="row"><button class="pri" id="pS">Salva</button>${id&&!self?'<span class="sp"></span><button class="danger" id="pD">Elimina</button>':''}</div>`;
   const fill=()=>{const r=$('#p-ruolo').value,cur=$('#p-parent').dataset.v??p.parent??'';
-    const ok=S.pr.filter(x=>x.id!==id&&(r==='capo'?x.ruolo==='staff':r==='pr'?x.ruolo!=='pr':false)).sort((a,b)=>ORD[a.ruolo]-ORD[b.ruolo]||sortNome(a,b));
-    $('#p-parent').innerHTML=(ad||self?`<option value="">${r==='staff'?'Nessuno (vertice)':'Nessuno (singolo)'}</option>`:'')+ok.map(x=>`<option value="${x.id}" ${x.id===cur?'selected':''}>${esc(nome(x))} · ${RUOLI[x.ruolo]}</option>`).join('');
-    $('#p-parent').disabled=r==='staff'||self};
+    const disc=new Set();if(id){const q=[id];while(q.length){const c=q.pop();for(const k of figli(c))if(!disc.has(k.id)){disc.add(k.id);q.push(k.id)}}}
+    const ok=S.pr.filter(x=>x.id!==id&&!disc.has(x.id)&&(r==='capo'||r==='staff'?x.ruolo==='staff':x.ruolo!=='pr')).sort((a,b)=>ORD[a.ruolo]-ORD[b.ruolo]||sortNome(a,b));
+    $('#p-parent').innerHTML=(ad||self?`<option value="">${r==='staff'?'Nessuno (al vertice)':'Nessuno (singolo)'}</option>`:'')+ok.map(x=>`<option value="${x.id}" ${x.id===cur?'selected':''}>${esc(nome(x))} · ${RUOLI[x.ruolo]}</option>`).join('');
+    $('#p-parent').disabled=!!self};
   fill();$('#p-ruolo').onchange=fill;$('#p-parent').onchange=e=>e.target.dataset.v=e.target.value;
   $('#pS').onclick=()=>salvaPR(id);if(id&&!self)$('#pD').onclick=e=>eliminaPR(id,e.target);
   $('#modal').classList.add('on');$('#p-nome').focus()}
@@ -337,9 +340,8 @@ async function salvaPR(id){const g=k=>$('#p-'+k).value.trim(),m=$('#pM');
   const d={nome:g('nome'),cognome:g('cognome'),ruolo:$('#p-ruolo').value,parent:$('#p-parent').value||null,anno:g('anno')?parseInt(g('anno'),10):null,tel:g('tel'),scuola:g('scuola'),zona:g('zona'),note:$('#p-note').value.trim()};
   if(!d.nome&&!d.cognome){m.textContent='Serve almeno il nome o il cognome.';return}
   if(d.anno!=null&&(isNaN(d.anno)||d.anno<1950||d.anno>2025)){m.textContent='Anno di nascita non valido.';return}
-  if(d.ruolo==='staff')d.parent=null;
   if(id){const f=figli(id);if(d.ruolo==='pr'&&f.length){m.textContent=`Ha ${f.length} persone collegate: spostale prima di farlo diventare PR.`;return}
-    if(d.ruolo==='capo'&&f.some(x=>x.ruolo==='capo')){m.textContent='Ha dei Capi PR sotto di sé: spostali prima di farlo diventare Capo PR.';return}}
+    if(d.ruolo==='capo'&&f.some(x=>x.ruolo!=='pr')){m.textContent='Ha Capi staff o Capi PR sotto di sé: spostali prima di farlo diventare Capo PR.';return}}
   if(!S.db){m.textContent='Archivio non raggiungibile: impossibile salvare.';return}
   $('#pS').disabled=true;try{const c=S.db.collection('pr');await (id?c.doc(id):c.doc()).set(d);chiudi();toast('Salvato')}catch(e){m.textContent='Errore nel salvataggio: '+(e.message||e.code);$('#pS').disabled=false}}
 async function eliminaPR(id,b){const f=figli(id),par=byId(id)?.parent;
