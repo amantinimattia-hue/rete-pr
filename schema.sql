@@ -35,3 +35,7 @@ CREATE TABLE IF NOT EXISTS utenti (
   ruolo TEXT NOT NULL CHECK (ruolo IN ('admin','staff')),
   persona_id TEXT
 );
+CREATE TABLE IF NOT EXISTS impostazioni (
+  chiave TEXT PRIMARY KEY, -- stagione_inizio, punti_persone, punti_euro
+  valore TEXT
+);

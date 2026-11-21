@@ -83,6 +83,45 @@ function controllaAlbero(d, id, persone) {
   return null;
 }
 
+/* ---------- classifica a punti ---------- */
+async function impostazioni(env) {
+  const rows = (await env.DB.prepare('SELECT * FROM impostazioni').all()).results;
+  const o = Object.fromEntries(rows.map(r => [r.chiave, r.valore]));
+  return { stagione_inizio: o.stagione_inizio || '2000-01-01', punti_persone: parseInt(o.punti_persone, 10) || 20, punti_euro: parseInt(o.punti_euro, 10) || 500 };
+}
+// Punti interi sui totali della stagione: PR = personali; Capi PR e Capi staff = personali + tutto il gruppo.
+// Ai capi staff arrivano solo nome e punti degli altri rami; i numeri solo per il proprio ramo.
+async function classificaPunti(env, me, admin, filtro) {
+  const imp = await impostazioni(env);
+  const persone = await tutte(env);
+  let sql = 'SELECT r.persona_id, r.b, r.t, r.e FROM risultati r JOIN serate s ON s.id = r.serata_id WHERE s.data >= ?1';
+  if (filtro) sql += ' AND (s.loc = ?2 OR s.fmt = ?2)';
+  const st = env.DB.prepare(sql);
+  const ris = (await (filtro ? st.bind(imp.stagione_inizio, filtro) : st.bind(imp.stagione_inizio)).all()).results;
+  const pers = {};
+  for (const r of ris) { const o = pers[r.persona_id] ||= { b: 0, t: 0, e: 0 }; o.b += r.b; o.t += r.t; o.e += r.e || 0; }
+  const figli = {}; for (const p of persone) if (p.parent) (figli[p.parent] ||= []).push(p.id);
+  const memo = {};
+  const team = (id, vis = new Set()) => {
+    if (memo[id]) return memo[id]; if (vis.has(id)) return { b: 0, t: 0, e: 0 }; vis.add(id);
+    const a = { ...(pers[id] || { b: 0, t: 0, e: 0 }) };
+    for (const c of figli[id] || []) { const v = team(c, vis); a.b += v.b; a.t += v.t; a.e += v.e; }
+    return memo[id] = a;
+  };
+  const mio = admin ? null : ramo(persone, me.persona_id);
+  const righe = [];
+  for (const p of persone) {
+    const v = p.ruolo === 'pr' ? (pers[p.id] || { b: 0, t: 0, e: 0 }) : team(p.id);
+    const persoTot = v.b + v.t; if (!persoTot && !v.e) continue;
+    const punti = Math.floor(persoTot / imp.punti_persone) + Math.floor(v.e / 100 / imp.punti_euro);
+    const vede = admin || mio.has(p.id);
+    const r = { nome: [p.nome, p.cognome].filter(Boolean).join(' ') || 'Senza nome', ruolo: p.ruolo, punti, mio: !admin && vede };
+    if (vede) Object.assign(r, { id: p.id, persone: persoTot, e: v.e, parent: p.parent });
+    righe.push(r);
+  }
+  return { imp, filtro, righe };
+}
+
 /* ---------- API ---------- */
 async function api(req, env, me, path) {
   const m = req.method, seg = path.split('/').filter(Boolean); // es. ['persone', 'id']
@@ -102,6 +141,7 @@ async function api(req, env, me, path) {
       ver: VER, me, persone: vis ? persone.filter(p => vis.has(p.id)) : persone, locali: loc.results,
       serate: ser.results.map(s => ({ ...s, ris: mappa[s.id] || {} })),
     };
+    out.imp = await impostazioni(env);
     if (admin) out.utenti = (await env.DB.prepare('SELECT * FROM utenti ORDER BY email').all()).results;
     return json(out);
   }
@@ -141,7 +181,18 @@ async function api(req, env, me, path) {
     }
   }
 
+  if (m === 'GET' && seg[0] === 'punti') return json(await classificaPunti(env, me, admin, new URL(req.url).searchParams.get('f') || ''));
+
   if (!admin) return err('Solo l\'amministratore può farlo', 403);
+
+  if (seg[0] === 'impostazioni' && m === 'PUT') {
+    const ini = txt(body.stagione_inizio, 10), pp = parseInt(body.punti_persone, 10), pe = parseInt(body.punti_euro, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ini)) return err('Data di inizio stagione non valida.');
+    if (!(pp >= 1 && pp <= 10000) || !(pe >= 1 && pe <= 1000000)) return err('Le soglie dei punti devono essere numeri maggiori di zero.');
+    const q = 'INSERT INTO impostazioni (chiave,valore) VALUES (?,?) ON CONFLICT(chiave) DO UPDATE SET valore=excluded.valore';
+    await env.DB.batch([env.DB.prepare(q).bind('stagione_inizio', ini), env.DB.prepare(q).bind('punti_persone', String(pp)), env.DB.prepare(q).bind('punti_euro', String(pe))]);
+    return json({ ok: true });
+  }
 
   if (seg[0] === 'locali') {
     if (m === 'POST') {

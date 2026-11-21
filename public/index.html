@@ -120,6 +120,7 @@ details>summary{cursor:pointer}
     <a href="#struttura" data-v="struttura">Struttura</a>
     <a href="#serate" data-v="serate" data-adm="1">Serate</a>
     <a href="#report" data-v="report">Report</a>
+    <a href="#punti" data-v="punti">Punti</a>
     <a href="#accessi" data-v="accessi" data-adm="1">Accessi</a>
   </nav>
 </div></header>
@@ -156,7 +157,7 @@ const vend=(id,ser)=>ser.reduce((a,s)=>add(a,R(s,id)),{b:0,t:0});
 const team=(id,ser)=>{const a=vend(id,ser);for(const c of figli(id))add(a,team(c.id,ser));return a};
 const sumSer=s=>Object.keys(s.ris||{}).reduce((a,id)=>add(a,R(s,id)),{b:0,t:0,e:0});
 const BT=v=>`<b>${v.b}</b> bigl. · <b>${v.t}</b> tav.${v.e?` · <b>${eur(v.e)}</b>`:''}`;
-const view=()=>{const h=location.hash.slice(1);return h.startsWith('persona-')?'persona':['archivio','struttura','serate','report','accessi'].includes(h)?h:'archivio'};
+const view=()=>{const h=location.hash.slice(1);return h.startsWith('persona-')?'persona':['archivio','struttura','serate','report','punti','accessi'].includes(h)?h:'archivio'};
 
 /* ---------- grafici ---------- */
 const bars=(rows)=>{if(!rows.length)return '<p class="empty">Nessun dato</p>';const m=Math.max(...rows.map(r=>r[1]),1);
@@ -317,6 +318,28 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   ${capo?`<div class="card"><h3>${p.ruolo==='staff'?'Gruppi e PR collegati':'PR collegati'}</h3><div class="tbl s"><table><thead><tr><th></th><th>Nome</th><th>Ruolo</th><th class="n">Serate a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">% persone ramo</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>
   ${segs.map(sg=>`<tr><td style="width:18px"><i style="width:10px;height:10px;border-radius:3px;background:${sg.c};display:inline-block"></i></td><td>${sg.id?`<button class="link" data-pg="${sg.id}">${esc(sg.n)}</button>`:`<b>${esc(sg.n)}</b>`}</td><td>${sg.id?`<span class="tag ${sg.ruolo}">${RUOLI[sg.ruolo]}</span>`:''}</td><td class="n">${sg.ser}</td><td class="n"><b>${sg.tot.b}</b></td><td class="n">${sg.tot.t}</td><td class="n">${tot.b+tot.t?Math.round((sg.tot.b+sg.tot.t)/(tot.b+tot.t)*100)+'%':'—'}</td>${inc?`<td class="n">${sg.tot.e?eur(sg.tot.e):''}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`:''}`}
 
+/* ---------- classifica a punti ---------- */
+async function caricaPunti(){const f=S.ptF||'';S.puntiLoad=f;
+  try{const d=await api('GET','/api/punti'+(f?'?f='+encodeURIComponent(f):''));if(S.puntiLoad!==f)return;S.puntiD=d}catch(e){S.puntiD={err:e.message,filtro:f}}
+  if(view()==='punti')render()}
+function vPunti(){const ad=S.me.ruolo==='admin',k=S.ptT||'pr',imp=S.imp||{punti_persone:20,punti_euro:500,stagione_inizio:''};
+  if(!S.puntiD||S.puntiD.filtro!==(S.ptF||'')){if(S.puntiLoad!==(S.ptF||'')||!S.puntiD)caricaPunti();}
+  const d=S.puntiD&&S.puntiD.filtro===(S.ptF||'')?S.puntiD:null;
+  const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it')),fm=S.loc.filter(l=>l.tipo==='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+  const tab=(v,l)=>`<button data-pt="${v}" class="${k===v?'on':''}">${l}</button>`;
+  let corpo='<p class="empty">Calcolo della classifica…</p>';
+  if(d&&d.err)corpo=`<p class="empty">Impossibile caricare la classifica: ${esc(d.err)}</p>`;
+  else if(d){const r=d.righe.filter(x=>x.ruolo===k).sort((a,b)=>b.punti-a.punti||(b.persone??-1)-(a.persone??-1)||a.nome.localeCompare(b.nome,'it'));
+    let pos=0,prev=null;r.forEach((x,i)=>{if(x.punti!==prev){pos=i+1;prev=x.punti}x.pos=pos});
+    const extra=ad||r.some(x=>x.mio);
+    corpo=r.length?`<div class="tbl"><table><thead><tr><th class="n">#</th><th>Nome</th><th class="n">Punti</th>${extra?'<th class="n">Persone</th><th class="n">Incasso tavoli</th>':''}${ad?'<th>Superiore</th>':''}</tr></thead><tbody>
+    ${r.map(x=>`<tr ${x.mio?'style="background:var(--panel)"':''}><td class="n">${x.pos<=3&&x.punti?`<span class="tag" style="background:${['var(--yel)','#d9d4d0','#e8a36b'][x.pos-1]};color:#2a1309">${x.pos}°</span>`:x.pos}</td><td>${x.id?`<button class="link" data-pg="${x.id}">${esc(x.nome)}</button>`:`<b>${esc(x.nome)}</b>`}${x.mio?' <span class="tag capo">tuo ramo</span>':''}</td><td class="n" style="font-size:16px"><b>${x.punti}</b></td>${extra?`<td class="n">${x.persone!=null?x.persone:''}</td><td class="n">${x.e!=null&&x.e?eur(x.e):''}</td>`:''}${ad?`<td>${x.parent&&byId(x.parent)?esc(nome(byId(x.parent))):''}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessuno ha ancora risultati in questa stagione.</p>'}
+  return `<div class="top"><div class="sp"><h2>Classifica a punti</h2><p class="sub">1 punto ogni <b>${imp.punti_persone}</b> persone (TicketSMS + tavoli) e ogni <b>${eur(imp.punti_euro*100)}</b> di incasso tavoli, sui totali della stagione iniziata il <b>${fmtD(imp.stagione_inizio)}</b>. Capi PR e Capi staff sommano anche i risultati del proprio gruppo.${ad?'':' Degli altri rami vedi solo nome e punti.'}</p></div></div>
+  ${ad?`<div class="card" style="margin-bottom:12px"><h3>Impostazioni dei punti</h3><div class="row"><label>Inizio stagione<input id="iS" type="date" value="${esc(imp.stagione_inizio)}"></label><label>Persone per 1 punto<input id="iP" type="number" min="1" value="${imp.punti_persone}" style="width:130px"></label><label>Euro di incasso per 1 punto<input id="iE" type="number" min="1" value="${imp.punti_euro}" style="width:150px"></label><button class="pri" id="iA" style="align-self:flex-end">Salva</button></div><p class="msg" id="iM"></p></div>`:''}
+  <div class="row" style="margin-bottom:10px"><div class="tabs" style="margin:0">${tab('pr','PR')}${tab('capo','Capi PR')}${tab('staff','Capi staff')}</div><span class="sp"></span>
+  <label style="display:flex;gap:6px;align-items:center">Serate <select id="ptF" style="width:auto"><option value="">Tutte</option>${loc.length?`<optgroup label="Locali">${loc.map(l=>`<option value="${l.id}" ${S.ptF===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}${fm.length?`<optgroup label="Format">${fm.map(l=>`<option value="${l.id}" ${S.ptF===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}</select></label></div>
+  ${corpo}`}
+
 /* ---------- accessi ---------- */
 function vAccessi(){const st=S.pr.filter(p=>p.ruolo==='staff').sort(sortNome);
   return `<div class="top"><div class="sp"><h2>Accessi</h2><p class="sub">Chi può entrare nel sito. Ogni capo staff vede e modifica solo il proprio ramo; gli amministratori si impostano nella variabile ADMIN_EMAILS del Worker.</p></div></div>
@@ -332,7 +355,7 @@ function render(){const v=view();for(const a of document.querySelectorAll('#nav 
   $('#who').innerHTML=`${esc(S.me.email)}${ad?' · amministratore':' · capo staff'} · <a href="/cdn-cgi/access/logout">Esci</a>`;
   if(!ad&&(v==='serate'||v==='accessi')){location.hash='archivio';return}
   const fo=document.activeElement,fid=fo&&fo.id&&$('#main').contains(fo)?fo.id:null,sel=fid&&fo.selectionStart!=null?[fo.selectionStart,fo.selectionEnd]:null;
-  S.charts={};$('#main').innerHTML=({archivio:vArchivio,struttura:vStruttura,serate:vSerate,report:vReport,persona:vPersona,accessi:vAccessi})[v]();draw();if(v==='archivio')upd();
+  S.charts={};$('#main').innerHTML=({archivio:vArchivio,struttura:vStruttura,serate:vSerate,report:vReport,persona:vPersona,punti:vPunti,accessi:vAccessi})[v]();draw();if(v==='archivio')upd();
   if(fid){const e=document.getElementById(fid);if(e){e.focus();if(sel&&e.setSelectionRange)try{e.setSelectionRange(...sel)}catch(_){}}}}
 
 /* ---------- scheda persona ---------- */
@@ -442,8 +465,9 @@ function chiudi(){$('#modal').classList.remove('on');S.draft=null}
 document.addEventListener('click',async e=>{const th=e.target.closest('th[data-so]');if(th){const k=th.dataset.so;S.so=S.so.k===k?{k,d:-S.so.d}:{k,d:k==='b'||k==='t'?-1:1};render();return}
   const t=e.target.closest('button,[data-rp]');if(!t)return;const d=t.dataset;
   if(d.pg){location.hash='persona-'+d.pg;scrollTo(0,0)}else if(d.back){if(history.length>1)history.back();else location.hash='archivio'}else if(d.ed)openPR(d.ed);else if(d.new)openPR(null);else if(d.ns)openSerata(null);else if(d.es)openSerata(d.es);else if(d.x)chiudi();
-  else if(d.rp){S.rep=d.rp;S.repPr='';render()}else if(d.cl){S.clT=d.cl;render()}else if(d.tp){S.repPr=d.tp;render();$('#rpP')?.scrollIntoView({block:'center'})}
+  else if(d.rp){S.rep=d.rp;S.repPr='';render()}else if(d.cl){S.clT=d.cl;render()}else if(d.pt){S.ptT=d.pt;render()}else if(d.tp){S.repPr=d.tp;render();$('#rpP')?.scrollIntoView({block:'center'})}
   else if(t.id==='clr'){S.q=S.fR=S.fS=S.fZ='';render()}
+  else if(t.id==='iA'){t.disabled=true;try{await api('PUT','/api/impostazioni',{stagione_inizio:$('#iS').value,punti_persone:$('#iP').value,punti_euro:$('#iE').value});toast('Impostazioni salvate');await load()}catch(er){$('#iM').textContent=er.message;t.disabled=false}}
   else if(t.id==='aA'){const em=$('#aE').value.trim(),pid=$('#aP').value;if(!em||!pid){$('#aM').textContent='Scrivi l\'email e scegli il capo staff.';return}
     t.disabled=true;try{await api('POST','/api/utenti',{email:em,persona_id:pid});toast('Accesso abilitato');await load()}catch(er){$('#aM').textContent=er.message;t.disabled=false}}
   else if(d.du){if(!t.dataset.c){t.dataset.c=1;t.textContent='Conferma';return}try{await api('DELETE','/api/utenti/'+encodeURIComponent(d.du));toast('Accesso tolto');await load()}catch(er){toast(er.message)}}
@@ -458,7 +482,7 @@ $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')chiudi()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').classList.contains('on'))chiudi()});
 const upd=()=>{$('#tb').innerHTML=righe();const c=$('#cnt');if(c)c.textContent=`${filtrati().length} di ${S.pr.length} persone`};
 document.addEventListener('input',e=>{const id=e.target.id;if(id==='q'){S.q=e.target.value;upd()}});
-document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}else if(id==='lT'){$('#lE').hidden=$('#lMis').hidden=e.target.value!=='format'}else if(id==='clS'){S.clS=e.target.value;render()}else if(id==='clF'){S.rep=e.target.value;S.repPr='';render()}});
+document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}else if(id==='lT'){$('#lE').hidden=$('#lMis').hidden=e.target.value!=='format'}else if(id==='ptF'){S.ptF=e.target.value;S.puntiD=null;render()}else if(id==='clS'){S.clS=e.target.value;render()}else if(id==='clF'){S.rep=e.target.value;S.repPr='';render()}});
 window.addEventListener('hashchange',render);
 
 /* ---------- dati (API del sito) ---------- */
@@ -469,7 +493,7 @@ async function api(m,u,b){const r=await fetch(u,{method:m,headers:{'content-type
   if(r.status===401||r.redirected&&!r.url.includes('/api/')){location.reload();throw {message:'Sessione scaduta'}}
   if(j.reload){toast(j.error);setTimeout(()=>location.reload(),1500)}
   if(!r.ok)throw {message:j.error||('Errore '+r.status)};return j}
-async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!==VER&&!S.me){location.reload();return}S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.got={pr:1,loc:1,ser:1};banner(d.ver&&d.ver!==VER?'È disponibile una versione nuova del sito: ricarica la pagina.':'');
+async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!==VER&&!S.me){location.reload();return}S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.imp=d.imp||S.imp;S.puntiD=null;S.got={pr:1,loc:1,ser:1};banner(d.ver&&d.ver!==VER?'È disponibile una versione nuova del sito: ricarica la pagina.':'');
   render();if(S.draft&&S.draft.k==='ser')listaRis()}catch(e){banner('Impossibile caricare i dati: '+(e.message||e));S.got={pr:1,loc:1,ser:1};render()}}
 S.db={collection:c=>({doc:id=>({set:async d=>{await api(id?'PUT':'POST',`/api/${MAP[c]}${id?'/'+id:''}`,d);await load()},
   delete:async()=>{await api('DELETE',`/api/${MAP[c]}/${id}`);await load()}})})};
