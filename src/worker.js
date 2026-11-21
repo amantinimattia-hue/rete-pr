@@ -90,7 +90,7 @@ async function impostazioni(env) {
   return { stagione_inizio: o.stagione_inizio || '2000-01-01', punti_persone: parseInt(o.punti_persone, 10) || 20, punti_euro: parseInt(o.punti_euro, 10) || 500 };
 }
 // Punti interi sui totali della stagione: PR = personali; Capi PR e Capi staff = personali + tutto il gruppo.
-// Ai capi staff arrivano solo nome e punti degli altri rami; i numeri solo per il proprio ramo.
+// La classifica mostra solo nome e punti (nessun numero di persone, incasso o superiore).
 async function classificaPunti(env, me, admin, filtro) {
   const imp = await impostazioni(env);
   const persone = await tutte(env);
@@ -116,7 +116,7 @@ async function classificaPunti(env, me, admin, filtro) {
     const punti = Math.floor(persoTot / imp.punti_persone) + Math.floor(v.e / 100 / imp.punti_euro);
     const vede = admin || mio.has(p.id);
     const r = { nome: [p.nome, p.cognome].filter(Boolean).join(' ') || 'Senza nome', ruolo: p.ruolo, punti, mio: !admin && vede };
-    if (vede) Object.assign(r, { id: p.id, persone: persoTot, e: v.e, parent: p.parent });
+    if (vede) r.id = p.id; // la classifica mostra solo nome e punti
     righe.push(r);
   }
   return { imp, filtro, righe };
