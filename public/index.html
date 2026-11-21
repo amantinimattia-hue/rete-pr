@@ -152,6 +152,15 @@ const EUR=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximum
 const EUR2=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2});
 const eur=c=>((c||0)%100?EUR2:EUR).format((c||0)/100); // incasso salvato in centesimi
 const cent=v=>{const n=parseFloat(String(v||'').replace(/\s|€/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));return Number.isFinite(n)&&n>0?Math.round(n*100):0};
+/* PR "a segno": fa più del migliore dei suoi risultati nelle 2 serate precedenti dello stesso format
+   (con meno serate precedenti si confronta con quelle che ci sono; alla prima basta almeno 1).
+   Format a persone: TicketSMS + tavoli; format a incasso: incasso. */
+const valSegno=(s,id)=>{const r=R(s,id);return misuraDi(s.fmt)==='incasso'?r.e:r.b+r.t};
+function calcSegno(){const g={},m=new Map();for(const s of serOrd())(g[s.fmt||'']||=[]).push(s);
+  for(const l of Object.values(g))l.forEach((s,i)=>{const prev=l.slice(Math.max(0,i-2),i),set=new Set();
+    for(const id of Object.keys(s.ris||{})){const v=valSegno(s,id),best=Math.max(0,...prev.map(p=>valSegno(p,id)));if(v>best)set.add(id)}m.set(s.id,set)});
+  return m}
+const segno=s=>(S.segno&&S.segno.get(s.id))||new Set();
 const misuraDi=fid=>S.loc.find(l=>l.id===fid)?.misura==='incasso'?'incasso':'persone';
 const vend=(id,ser)=>ser.reduce((a,s)=>add(a,R(s,id)),{b:0,t:0});
 const team=(id,ser)=>{const a=vend(id,ser);for(const c of figli(id))add(a,team(c.id,ser));return a};
@@ -243,8 +252,8 @@ function vSerate(){const l=serOrd().reverse();
   return `<div class="top"><div class="sp"><h2>Serate</h2><p class="sub">Inserisci biglietti TicketSMS e tavoli di ogni PR. Chi fa 0 in entrambi non viene registrato.</p></div><button class="pri" data-ns="1">Nuova serata</button></div>
   <div class="card" style="margin-bottom:12px"><h3>Locali e format</h3><div class="chips">${S.loc.length?[...S.loc].sort((a,b)=>a.tipo.localeCompare(b.tipo)||a.nome.localeCompare(b.nome,'it')).map(chip).join(''):'<p class="empty">Aggiungi i locali e i format: ognuno avrà la sua sezione nei report.</p>'}</div>
   <div class="row"><input id="lN" placeholder="Nome locale o format" style="flex:2 1 200px;width:auto"><select id="lT" style="flex:1 1 120px;width:auto"><option value="locale">Locale</option><option value="format">Format</option></select><input id="lE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima (es. 14)" style="flex:1 1 150px;width:auto" hidden><select id="lMis" style="flex:1 1 150px;width:auto" hidden><option value="persone">Si misura a persone</option><option value="incasso">Si misura a incasso</option></select><button id="lA">Aggiungi</button></div><p class="msg" id="lM"></p></div>
-  <div class="tbl"><table class="stack"><thead><tr><th>Data</th><th>Serata</th><th>Locale</th><th>Format</th><th class="n">PR a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">Incasso tavoli</th></tr></thead><tbody>
-  ${l.length?l.map(s=>{const v=sumSer(s);return `<tr><td class="n" style="text-align:left">${fmtD(s.data)}</td><td><button class="link" data-es="${s.id}">${esc(s.nome||'Serata')}</button></td><td>${esc(locName(s.loc))}</td><td>${esc(locName(s.fmt))}</td><td class="n">${Object.keys(s.ris||{}).length}</td><td class="n">${v.b}</td><td class="n">${v.t}</td><td class="n">${v.e?eur(v.e):''}</td></tr>`}).join(''):'<tr><td colspan="8"><p class="empty">Nessuna serata inserita.</p></td></tr>'}</tbody></table></div>`}
+  <div class="tbl"><table class="stack"><thead><tr><th>Data</th><th>Serata</th><th>Locale</th><th>Format</th><th class="n">PR attivi</th><th class="n">A segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">Incasso tavoli</th></tr></thead><tbody>
+  ${l.length?l.map(s=>{const v=sumSer(s);return `<tr><td class="n" style="text-align:left">${fmtD(s.data)}</td><td><button class="link" data-es="${s.id}">${esc(s.nome||'Serata')}</button></td><td>${esc(locName(s.loc))}</td><td>${esc(locName(s.fmt))}</td><td class="n">${Object.keys(s.ris||{}).length}</td><td class="n">${segno(s).size}</td><td class="n">${v.b}</td><td class="n">${v.t}</td><td class="n">${v.e?eur(v.e):''}</td></tr>`}).join(''):'<tr><td colspan="9"><p class="empty">Nessuna serata inserita.</p></td></tr>'}</tbody></table></div>`}
 
 /* ---------- report ---------- */
 function classifica(ser,loc,fm){const k=S.clT||'pr',m1=n=>n.toFixed(1).replace('.',',');
@@ -269,7 +278,9 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   const stat=new Map();for(const s of ser)for(const id of Object.keys(s.ris||{})){const r=R(s,id);if(r.b<1&&r.t<1&&!r.e)continue;const o=stat.get(id)||{b:0,t:0,e:0,n:0,max:0};o.b+=r.b;o.t+=r.t;o.e+=r.e;o.n++;o.max=Math.max(o.max,r.b+r.t);stat.set(id,o)}
   const cls=[...stat].sort((a,b)=>b[1].b-a[1].b||b[1].t-a[1].t);
   const rami=S.pr.filter(p=>p.ruolo!=='pr'&&figli(p.id).length).map(p=>[p,team(p.id,ser)]).filter(x=>x[1].b||x[1].t||x[1].e).sort((a,b)=>(b[1].b+b[1].t)-(a[1].b+a[1].t)||b[1].e-a[1].e);
-  if(S.repPr&&!stat.has(S.repPr))S.repPr='';const pSel=S.repPr||cls[0]?.[0]||'';
+  const trendL=S.pr.map(p=>[p,team(p.id,ser)]).filter(([,v])=>v.b||v.t||v.e).sort((a,b)=>ORD[a[0].ruolo]-ORD[b[0].ruolo]||sortNome(a[0],b[0]));
+  const trendV=new Map(trendL.map(([p,v])=>[p.id,v]));
+  if(S.repPr&&!trendV.has(S.repPr))S.repPr='';const pSel=S.repPr||cls[0]?.[0]||trendL[0]?.[0].id||'';
   const pt=(s,v)=>({l:fmtD(s.data).slice(0,5),t:`${fmtD(s.data)} ${s.nome||''}`,v});
   const best=ser.reduce((b,s)=>{const v=sumSer(s).b;return !b||v>b.v?{v,s}:b},null);
   const m1=n=>n.toFixed(1).replace('.',',');
@@ -278,20 +289,20 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   <h3 style="font-size:18px">${esc(titolo)}</h3>
   <div class="kpis"><div class="kpi"><b>${ser.length}</b><span>serate</span></div><div class="kpi"><b>${tot.b}</b><span>biglietti TicketSMS</span></div>
   <div class="kpi"><b>${tot.t}</b><span>tavoli</span></div><div class="kpi"><b>${ser.length?m1((tot.b+tot.t)/ser.length):'0'}</b><span>persone medie a serata (TicketSMS + tavoli)</span></div>
-  <div class="kpi"><b>${stat.size}</b><span>PR andati a segno</span></div>
+  <div class="kpi"><b>${new Set(ser.flatMap(s=>[...segno(s)])).size}</b><span>PR andati a segno almeno una volta</span></div>
   <div class="kpi"><b>${best?best.v:0}</b><span>biglietti nella serata migliore${best?' · '+fmtD(best.s.data):''}</span></div>
   ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eur(tot.e)}</b><span>incasso tavoli</span></div><div class="kpi" style="border-top-color:var(--or)"><b>${eur(serInc?tot.e/serInc:0)}</b><span>incasso medio a serata (serate con incasso)</span></div>`:''}</div>
   <div class="grid3"><div class="card"><h3>Biglietti per serata</h3>${colChart('b',ser.map(s=>pt(s,sumSer(s).b)))}</div>
   <div class="card"><h3>Tavoli per serata</h3>${colChart('t',ser.map(s=>pt(s,sumSer(s).t)))}</div>
-  <div class="card"><h3>PR andati a segno per serata</h3>${colChart('a',ser.map(s=>pt(s,Object.keys(s.ris||{}).length)))}</div>
+  <div class="card"><h3>PR andati a segno per serata</h3><p class="note" style="margin:-4px 0 4px">Hanno superato il loro miglior risultato delle 2 serate precedenti dello stesso format</p>${colChart('a',ser.map(s=>pt(s,segno(s).size)))}</div>
   ${inc?`<div class="card"><h3>Incasso tavoli per serata (€)</h3>${colChart('e',ser.map(s=>pt(s,Math.round(sumSer(s).e/100))))}</div>`:''}</div>
   ${classifica(ser,loc,fm)}
   <div class="grid2">
-  <div class="card"><h3>Trend di un PR</h3><label>PR<select id="rpP">${cls.map(([id])=>`<option value="${id}" ${id===pSel?'selected':''}>${esc(nome(byId(id)))}</option>`).join('')||'<option>Nessuno</option>'}</select></label>
-  ${(()=>{const hasE=!!(pSel&&stat.get(pSel)?.e),serie=[{n:'TicketSMS',c:'var(--red)',ax:'l'},{n:'Tavoli',c:'var(--yel)',ax:'l'}].concat(hasE?[{n:'Incasso tavoli',c:'var(--inc)',ax:'r'}]:[]);
+  <div class="card"><h3>Trend di un PR</h3><label>Persona (risultati personali + di tutti quelli sotto di lui)<select id="rpP">${trendL.map(([p])=>`<option value="${p.id}" ${p.id===pSel?'selected':''}>${esc(nome(p))}${p.ruolo!=='pr'?' · '+RUOLI[p.ruolo]:''}</option>`).join('')||'<option>Nessuno</option>'}</select></label>
+  ${(()=>{const hasE=!!(pSel&&trendV.get(pSel)?.e),serie=[{n:'TicketSMS',c:'var(--red)',ax:'l'},{n:'Tavoli',c:'var(--yel)',ax:'l'}].concat(hasE?[{n:'Incasso tavoli',c:'var(--inc)',ax:'r'}]:[]);
     const sw=c=>`<i style="width:10px;height:10px;border-radius:3px;background:${c};display:inline-block;margin-right:4px"></i>`;
     return `<div class="row" style="gap:12px;margin:10px 0 0;font-size:12.5px;color:var(--mute)">${serie.map(x=>`<span>${sw(x.c)}${x.n}${x.ax==='r'?' (€, scala a destra)':''}</span>`).join('')}</div>`
-      +groupChart('pg',{serie,pts:pSel?ser.map(s=>{const r=R(s,pSel);return {...pt(s,0),v:[r.b,r.t].concat(hasE?[Math.round(r.e/100)]:[])}}):[]})})()}</div></div>
+      +groupChart('pg',{serie,pts:pSel?ser.map(s=>{const r=team(pSel,[s]);return {...pt(s,0),v:[r.b,r.t].concat(hasE?[Math.round(r.e/100)]:[])}}):[]})})()}</div></div>
   <div class="card"><h3>Totale per ramo dello staff</h3>${rami.length?`<div class="tbl s"><table><thead><tr><th>Ramo</th><th class="n">Biglietti</th><th class="n">Tavoli</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>${rami.map(([p,v])=>`<tr><td><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span class="note i">${RUOLI[p.ruolo]} · ${figli(p.id).length} collegati</span></td><td class="n"><b>${v.b}</b></td><td class="n">${v.t}</td>${inc?`<td class="n">${v.e?eur(v.e):''}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun ramo con risultati.</p>'}</div>`}
 
 
@@ -326,6 +337,7 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   ${p.note?`<p class="sub" style="color:var(--ink)">${esc(p.note)}</p>`:''}</div><button data-ed="${p.id}">Modifica anagrafica</button></div>
   ${scopeTabs()}
   <div class="kpis"><div class="kpi"><b>${conRis}<small style="font-size:14px;color:var(--mute)"> / ${ser.length}</small></b><span>serate con risultati${capo?' (ramo)':''}</span></div>
+  <div class="kpi"><b>${ser.filter(s=>segno(s).has(id)).length}</b><span>volte a segno (risultati personali)</span></div>
   <div class="kpi"><b>${tot.b}</b><span>biglietti${capo?' del ramo':''}</span></div><div class="kpi"><b>${tot.t}</b><span>tavoli${capo?' del ramo':''}</span></div>
   ${capo?`<div class="kpi"><b>${segs[0].tot.b} · ${segs[0].tot.t}</b><span>personali (bigl. · tav.)</span></div>`:''}
   <div class="kpi"><b>${conRis?m1((tot.b+tot.t)/conRis):'0'}</b><span>persone medie nelle serate attive (TicketSMS + tavoli)</span></div>
@@ -333,7 +345,7 @@ function vPersona(){const id=location.hash.slice(9),p=byId(id);
   ${inc?`<div class="kpi" style="border-top-color:var(--or)"><b>${eur(tot.e)}</b><span>incasso tavoli${capo?' del ramo':''}${capo&&segs[0].tot.e?' · personale '+eur(segs[0].tot.e):''}</span></div>`:''}</div>
   ${legend}
   <div class="grid2"><div class="card"><h3>Biglietti per serata${capo?' · totale e parziali':''}</h3>${chart('qb','b')}</div><div class="card"><h3>Tavoli per serata${capo?' · totale e parziali':''}</h3>${chart('qt','t')}</div>${inc?`<div class="card"><h3>Incasso tavoli per serata (€)${capo?' · totale e parziali':''}</h3>${chart('qe','e')}</div>`:''}</div>
-  ${capo?`<div class="card"><h3>${p.ruolo==='staff'?'Gruppi e PR collegati':'PR collegati'}</h3><div class="tbl s"><table><thead><tr><th></th><th>Nome</th><th>Ruolo</th><th class="n">Serate a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">% persone ramo</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>
+  ${capo?`<div class="card"><h3>${p.ruolo==='staff'?'Gruppi e PR collegati':'PR collegati'}</h3><div class="tbl s"><table><thead><tr><th></th><th>Nome</th><th>Ruolo</th><th class="n">Serate attive</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">% persone ramo</th>${inc?'<th class="n">Incasso tavoli</th>':''}</tr></thead><tbody>
   ${segs.map(sg=>`<tr><td style="width:18px"><i style="width:10px;height:10px;border-radius:3px;background:${sg.c};display:inline-block"></i></td><td>${sg.id?`<button class="link" data-pg="${sg.id}">${esc(sg.n)}</button>`:`<b>${esc(sg.n)}</b>`}</td><td>${sg.id?`<span class="tag ${sg.ruolo}">${RUOLI[sg.ruolo]}</span>`:''}</td><td class="n">${sg.ser}</td><td class="n"><b>${sg.tot.b}</b></td><td class="n">${sg.tot.t}</td><td class="n">${tot.b+tot.t?Math.round((sg.tot.b+sg.tot.t)/(tot.b+tot.t)*100)+'%':'—'}</td>${inc?`<td class="n">${sg.tot.e?eur(sg.tot.e):''}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`:''}`}
 
 /* ---------- classifica a punti ---------- */
@@ -419,7 +431,7 @@ function openSerata(id){const s=id?S.ser.find(x=>x.id===id):{data:new Date().toI
   <div class="form"><label>Data<input id="s-data" type="date" value="${esc(s.data||'')}"></label><label>Nome serata<input id="s-nome" value="${esc(s.nome||'')}" placeholder="Es. VidaLoca"></label>
   <label>Locale<select id="s-loc">${os('locale',s.loc)}</select></label><label>Format<select id="s-fmt">${os('format',s.fmt)}</select></label>
   <div class="w row" id="s-new" hidden><input id="s-newN" style="flex:2 1 200px;width:auto"><input id="s-newE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima" style="flex:1 1 120px;width:auto" hidden><select id="s-newM" style="flex:1 1 140px;width:auto" hidden><option value="persone">A persone</option><option value="incasso">A incasso</option></select><button class="pri" id="s-newA">Crea</button><button class="ghost" id="s-newX">Annulla</button></div></div>
-  <div class="row"><h3 class="sp" style="margin:0">Risultati PR</h3><span class="tot"><b id="sT">0</b> bigl. · <b id="sV">0</b> tav.<span id="sEw"> · <b id="sE">€ 0</b></span> · <b id="sN">0</b> PR a segno</span></div>
+  <div class="row"><h3 class="sp" style="margin:0">Risultati PR</h3><span class="tot"><b id="sT">0</b> bigl. · <b id="sV">0</b> tav.<span id="sEw"> · <b id="sE">€ 0</b></span> · <b id="sN">0</b> PR con risultati</span></div>
   <input id="s-q" type="search" placeholder="Cerca un PR…" style="margin-top:8px"><div class="rl" id="rl"></div>
   <details><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">Incolla una lista (una riga per PR: Nome Cognome biglietti tavoli · nei format a incasso: Nome Cognome importo)</summary>
   <textarea id="s-paste" placeholder="Mario Rossi 12 1&#10;Giulia Bianchi;7"></textarea><div class="row" style="margin-top:8px"><button id="s-ap">Applica lista</button></div></details>
@@ -512,7 +524,7 @@ async function api(m,u,b){const r=await fetch(u,{method:m,headers:{'content-type
   if(r.status===401||r.redirected&&!r.url.includes('/api/')){location.reload();throw {message:'Sessione scaduta'}}
   if(j.reload){toast(j.error);setTimeout(()=>location.reload(),1500)}
   if(!r.ok)throw {message:j.error||('Errore '+r.status)};return j}
-async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!==VER&&!S.me){location.reload();return}S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.imp=d.imp||S.imp;S.puntiD=null;S.got={pr:1,loc:1,ser:1};banner(d.ver&&d.ver!==VER?'È disponibile una versione nuova del sito: ricarica la pagina.':'');
+async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!==VER&&!S.me){location.reload();return}S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.imp=d.imp||S.imp;S.puntiD=null;S.got={pr:1,loc:1,ser:1};S.segno=calcSegno();banner(d.ver&&d.ver!==VER?'È disponibile una versione nuova del sito: ricarica la pagina.':'');
   render();if(S.draft&&S.draft.k==='ser')listaRis()}catch(e){banner('Impossibile caricare i dati: '+(e.message||e));S.got={pr:1,loc:1,ser:1};render()}}
 S.db={collection:c=>({doc:id=>({set:async d=>{await api(id?'PUT':'POST',`/api/${MAP[c]}${id?'/'+id:''}`,d);await load()},
   delete:async()=>{await api('DELETE',`/api/${MAP[c]}/${id}`);await load()}})})};
