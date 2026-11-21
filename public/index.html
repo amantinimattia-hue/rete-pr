@@ -225,6 +225,18 @@ function vSerate(){const l=serOrd().reverse();
   ${l.length?l.map(s=>{const v=sumSer(s);return `<tr><td class="n" style="text-align:left">${fmtD(s.data)}</td><td><button class="link" data-es="${s.id}">${esc(s.nome||'Serata')}</button></td><td>${esc(locName(s.loc))}</td><td>${esc(locName(s.fmt))}</td><td class="n">${Object.keys(s.ris||{}).length}</td><td class="n">${v.b}</td><td class="n">${v.t}</td></tr>`}).join(''):'<tr><td colspan="7"><p class="empty">Nessuna serata inserita.</p></td></tr>'}</tbody></table></div>`}
 
 /* ---------- report ---------- */
+function classifica(ser,loc,fm){const k=S.clT||'pr',key=S.clS||'tot',m1=n=>n.toFixed(1).replace('.',',');
+  const righe=S.pr.filter(p=>p.ruolo===k).map(p=>{let b=0,t=0,n=0;for(const s of ser){const v=k==='pr'?R(s,p.id):team(p.id,[s]);b+=v.b;t+=v.t;if(v.b+v.t>=1)n++}
+    return {p,b,t,tot:b+t,n,media:n?(b+t)/n:0}}).filter(x=>x.tot>=1).sort((a,b)=>b[key]-a[key]||b.tot-a.tot||sortNome(a.p,b.p));
+  const tab=(v,l)=>`<button data-cl="${v}" class="${k===v?'on':''}">${l}</button>`;
+  const th=(v,l)=>`<th class="n ${key===v?'on':''}">${l}</th>`;
+  return `<div class="card" style="margin-bottom:12px"><div class="row" style="margin-bottom:8px"><h3 style="margin:0">Classifica</h3>
+  <div class="tabs" style="margin:0">${tab('staff','Capi staff')}${tab('capo','Capi PR')}${tab('pr','PR')}</div><span class="sp"></span>
+  <label style="display:flex;gap:6px;align-items:center">Ordina per <select id="clS" style="width:auto">${[['tot','Totale persone'],['b','TicketSMS'],['t','Tavoli'],['media','Media persone']].map(([v,l])=>`<option value="${v}" ${v===key?'selected':''}>${l}</option>`).join('')}</select></label>
+  <label style="display:flex;gap:6px;align-items:center">Serate <select id="clF" style="width:auto"><option value="all">Tutte</option>${loc.length?`<optgroup label="Locali">${loc.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}${fm.length?`<optgroup label="Format">${fm.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}</select></label></div>
+  <p class="note" style="margin:0 0 8px">${k==='pr'?'PR: solo i risultati personali.':`${k==='staff'?'Capi staff':'Capi PR'}: personali + tutto il loro gruppo.`} Totale persone = TicketSMS + tavoli; media = totale persone diviso le serate con almeno 1 persona.</p>
+  ${righe.length?`<div class="tbl s"><table><thead><tr><th class="n">#</th><th>Nome</th><th class="n">Serate</th>${th('b','TicketSMS')}${th('t','Tavoli')}${th('tot','Totale persone')}${th('media','Media persone')}</tr></thead><tbody>
+  ${righe.map((x,i)=>`<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${x.p.id}">${esc(nome(x.p))}</button>${x.p.parent&&byId(x.p.parent)?`<span class="note i">${esc(nome(byId(x.p.parent)))}</span>`:''}</td><td class="n">${x.n}</td><td class="n">${x.b}</td><td class="n">${x.t}</td><td class="n"><b>${x.tot}</b></td><td class="n">${m1(x.media)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>`}
 function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it')),fm=S.loc.filter(l=>l.tipo==='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
   if(S.rep!=='all'&&!S.loc.some(l=>l.id===S.rep))S.rep='all';
   const tb=(k,t)=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${esc(t)}</button>`;
@@ -248,10 +260,8 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   <div class="grid3"><div class="card"><h3>Biglietti per serata</h3>${colChart('b',ser.map(s=>pt(s,sumSer(s).b)))}</div>
   <div class="card"><h3>Tavoli per serata</h3>${colChart('t',ser.map(s=>pt(s,sumSer(s).t)))}</div>
   <div class="card"><h3>PR andati a segno per serata</h3>${colChart('a',ser.map(s=>pt(s,Object.keys(s.ris||{}).length)))}</div></div>
+  ${classifica(ser,loc,fm)}
   <div class="grid2">
-  
-  <div class="card"><h3>Classifica PR</h3>${cls.length?`<div class="tbl s"><table><thead><tr><th class="n">#</th><th>PR</th><th class="n">Serate</th><th class="n">Biglietti</th><th class="n">Tavoli</th><th class="n">Media persone</th><th class="n">Max persone</th></tr></thead><tbody>
-  ${cls.map(([id,o],i)=>{const p=byId(id);return `<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${id}">${esc(nome(p))}</button>${p&&p.parent?`<span class="note i">${esc(nome(byId(p.parent)))}</span>`:''}</td><td class="n">${o.n}</td><td class="n"><b>${o.b}</b></td><td class="n">${o.t}</td><td class="n">${m1((o.b+o.t)/o.n)}</td><td class="n">${o.max}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>
   <div class="card"><h3>Trend di un PR</h3><label>PR<select id="rpP">${cls.map(([id])=>`<option value="${id}" ${id===pSel?'selected':''}>${esc(nome(byId(id)))}</option>`).join('')||'<option>Nessuno</option>'}</select></label>
   <p class="note" style="margin:12px 0 0">Biglietti</p>${colChart('pb',pSel?ser.map(s=>pt(s,R(s,pSel).b)):[])}<p class="note" style="margin:12px 0 0">Tavoli</p>${colChart('pt',pSel?ser.map(s=>pt(s,R(s,pSel).t)):[])}</div></div>
   <div class="card"><h3>Totale per ramo dello staff</h3>${rami.length?`<div class="tbl s"><table><thead><tr><th>Ramo</th><th class="n">Biglietti</th><th class="n">Tavoli</th></tr></thead><tbody>${rami.map(([p,v])=>`<tr><td><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span class="note i">${RUOLI[p.ruolo]} · ${figli(p.id).length} collegati</span></td><td class="n"><b>${v.b}</b></td><td class="n">${v.t}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun ramo con risultati.</p>'}</div>`}
@@ -392,7 +402,7 @@ function chiudi(){$('#modal').classList.remove('on');S.draft=null}
 document.addEventListener('click',async e=>{const th=e.target.closest('th[data-so]');if(th){const k=th.dataset.so;S.so=S.so.k===k?{k,d:-S.so.d}:{k,d:k==='b'||k==='t'?-1:1};render();return}
   const t=e.target.closest('button,[data-rp]');if(!t)return;const d=t.dataset;
   if(d.pg){location.hash='persona-'+d.pg;scrollTo(0,0)}else if(d.back){if(history.length>1)history.back();else location.hash='archivio'}else if(d.ed)openPR(d.ed);else if(d.new)openPR(null);else if(d.ns)openSerata(null);else if(d.es)openSerata(d.es);else if(d.x)chiudi();
-  else if(d.rp){S.rep=d.rp;S.repPr='';render()}else if(d.tp){S.repPr=d.tp;render();$('#rpP')?.scrollIntoView({block:'center'})}
+  else if(d.rp){S.rep=d.rp;S.repPr='';render()}else if(d.cl){S.clT=d.cl;render()}else if(d.tp){S.repPr=d.tp;render();$('#rpP')?.scrollIntoView({block:'center'})}
   else if(t.id==='clr'){S.q=S.fR=S.fS=S.fZ='';render()}
   else if(t.id==='aA'){const em=$('#aE').value.trim(),pid=$('#aP').value;if(!em||!pid){$('#aM').textContent='Scrivi l\'email e scegli il capo staff.';return}
     t.disabled=true;try{await api('POST','/api/utenti',{email:em,persona_id:pid});toast('Accesso abilitato');await load()}catch(er){$('#aM').textContent=er.message;t.disabled=false}}
@@ -406,7 +416,7 @@ $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')chiudi()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').classList.contains('on'))chiudi()});
 const upd=()=>{$('#tb').innerHTML=righe();const c=$('#cnt');if(c)c.textContent=`${filtrati().length} di ${S.pr.length} persone`};
 document.addEventListener('input',e=>{const id=e.target.id;if(id==='q'){S.q=e.target.value;upd()}});
-document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}});
+document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}else if(id==='clS'){S.clS=e.target.value;render()}else if(id==='clF'){S.rep=e.target.value;S.repPr='';render()}});
 window.addEventListener('hashchange',render);
 
 /* ---------- dati (API del sito) ---------- */
