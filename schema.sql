@@ -10,7 +10,8 @@ CREATE INDEX IF NOT EXISTS persone_parent ON persone(parent);
 CREATE TABLE IF NOT EXISTS locali (
   id TEXT PRIMARY KEY,
   nome TEXT NOT NULL,
-  tipo TEXT NOT NULL CHECK (tipo IN ('locale','format'))
+  tipo TEXT NOT NULL CHECK (tipo IN ('locale','format')),
+  eta_min INTEGER
 );
 CREATE TABLE IF NOT EXISTS serate (
   id TEXT PRIMARY KEY,

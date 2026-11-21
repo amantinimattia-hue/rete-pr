@@ -44,6 +44,7 @@ async function chiSei(req, env) {
 }
 
 /* ---------- utilità sui dati ---------- */
+const etaMin = v => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 6 && n <= 99 ? n : null; };
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 20);
 const txt = (v, n = 200) => (v == null ? '' : String(v)).trim().slice(0, n);
 async function tutte(env) { return (await env.DB.prepare('SELECT * FROM persone').all()).results; }
@@ -144,7 +145,19 @@ async function api(req, env, me, path) {
     if (m === 'POST') {
       const nome = txt(body.nome, 80), tipo = body.tipo === 'format' ? 'format' : 'locale';
       if (!nome) return err('Scrivi il nome.');
-      await env.DB.prepare('INSERT INTO locali (id,nome,tipo) VALUES (?,?,?)').bind(uid(), nome, tipo).run();
+      const eta = etaMin(body.eta_min);
+      if (tipo === 'format' && eta == null) return err('Indica l\'età minima del format (es. 14).');
+      const id = uid();
+      await env.DB.prepare('INSERT INTO locali (id,nome,tipo,eta_min) VALUES (?,?,?,?)').bind(id, nome, tipo, tipo === 'format' ? eta : null).run();
+      return json({ ok: true, id });
+    }
+    if (m === 'PUT' && seg[1]) {
+      const l = await env.DB.prepare('SELECT * FROM locali WHERE id=?').bind(seg[1]).first();
+      if (!l) return err('Non trovato', 404);
+      const nome = txt(body.nome, 80); if (!nome) return err('Scrivi il nome.');
+      const eta = etaMin(body.eta_min);
+      if (l.tipo === 'format' && eta == null) return err('Indica l\'età minima del format (es. 14).');
+      await env.DB.prepare('UPDATE locali SET nome=?, eta_min=? WHERE id=?').bind(nome, l.tipo === 'format' ? eta : null, seg[1]).run();
       return json({ ok: true });
     }
     if (m === 'DELETE' && seg[1]) {

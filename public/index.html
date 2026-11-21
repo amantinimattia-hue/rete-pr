@@ -143,6 +143,7 @@ const sortNome=(a,b)=>nome(a).localeCompare(nome(b),'it');
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2600)};
 const banner=t=>{const b=$('#banner');b.textContent=t||'';b.style.display=t?'block':'none'};
 const locName=id=>S.loc.find(l=>l.id===id)?.nome||'';
+const etaTxt=l=>l&&l.tipo==='format'?(l.eta_min?l.eta_min+'+':'età da indicare'):'';
 const serOrd=()=>[...S.ser].sort((a,b)=>(a.data||'').localeCompare(b.data||''));
 const R=(s,id)=>{const x=(s.ris||{})[id];return typeof x==='number'?{b:x,t:0}:{b:+(x&&x.b)||0,t:+(x&&x.t)||0}};
 const add=(a,r)=>(a.b+=r.b,a.t+=r.t,a);
@@ -217,10 +218,10 @@ function vStruttura(){const ser=S.ser,T=id=>`<span class="tot">personali ${BT(ve
 
 /* ---------- serate ---------- */
 function vSerate(){const l=serOrd().reverse();
-  const chip=x=>`<span class="leaf">${esc(x.nome)}<span>${x.tipo==='format'?'format':'locale'}</span><button class="ghost" data-dl="${x.id}" aria-label="Elimina ${esc(x.nome)}">×</button></span>`;
+  const chip=x=>`<span class="leaf"><button class="link" data-el="${x.id}" title="Modifica">${esc(x.nome)}</button><span ${x.tipo==='format'&&!x.eta_min?'style="color:var(--red)"':''}>${x.tipo==='format'?'format · '+etaTxt(x):'locale'}</span><button class="ghost" data-dl="${x.id}" aria-label="Elimina ${esc(x.nome)}">×</button></span>`;
   return `<div class="top"><div class="sp"><h2>Serate</h2><p class="sub">Inserisci biglietti TicketSMS e tavoli di ogni PR. Chi fa 0 in entrambi non viene registrato.</p></div><button class="pri" data-ns="1">Nuova serata</button></div>
   <div class="card" style="margin-bottom:12px"><h3>Locali e format</h3><div class="chips">${S.loc.length?[...S.loc].sort((a,b)=>a.tipo.localeCompare(b.tipo)||a.nome.localeCompare(b.nome,'it')).map(chip).join(''):'<p class="empty">Aggiungi i locali e i format: ognuno avrà la sua sezione nei report.</p>'}</div>
-  <div class="row"><input id="lN" placeholder="Nome locale o format" style="flex:2 1 200px;width:auto"><select id="lT" style="flex:1 1 120px;width:auto"><option value="locale">Locale</option><option value="format">Format</option></select><button id="lA">Aggiungi</button></div><p class="msg" id="lM"></p></div>
+  <div class="row"><input id="lN" placeholder="Nome locale o format" style="flex:2 1 200px;width:auto"><select id="lT" style="flex:1 1 120px;width:auto"><option value="locale">Locale</option><option value="format">Format</option></select><input id="lE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima (es. 14)" style="flex:1 1 150px;width:auto" hidden><button id="lA">Aggiungi</button></div><p class="msg" id="lM"></p></div>
   <div class="tbl"><table class="stack"><thead><tr><th>Data</th><th>Serata</th><th>Locale</th><th>Format</th><th class="n">PR a segno</th><th class="n">Biglietti</th><th class="n">Tavoli</th></tr></thead><tbody>
   ${l.length?l.map(s=>{const v=sumSer(s);return `<tr><td class="n" style="text-align:left">${fmtD(s.data)}</td><td><button class="link" data-es="${s.id}">${esc(s.nome||'Serata')}</button></td><td>${esc(locName(s.loc))}</td><td>${esc(locName(s.fmt))}</td><td class="n">${Object.keys(s.ris||{}).length}</td><td class="n">${v.b}</td><td class="n">${v.t}</td></tr>`}).join(''):'<tr><td colspan="7"><p class="empty">Nessuna serata inserita.</p></td></tr>'}</tbody></table></div>`}
 
@@ -233,7 +234,7 @@ function classifica(ser,loc,fm){const k=S.clT||'pr',key=S.clS||'tot',m1=n=>n.toF
   return `<div class="card" style="margin-bottom:12px"><div class="row" style="margin-bottom:8px"><h3 style="margin:0">Classifica</h3>
   <div class="tabs" style="margin:0">${tab('staff','Capi staff')}${tab('capo','Capi PR')}${tab('pr','PR')}</div><span class="sp"></span>
   <label style="display:flex;gap:6px;align-items:center">Ordina per <select id="clS" style="width:auto">${[['tot','Totale persone'],['b','TicketSMS'],['t','Tavoli'],['media','Media persone']].map(([v,l])=>`<option value="${v}" ${v===key?'selected':''}>${l}</option>`).join('')}</select></label>
-  <label style="display:flex;gap:6px;align-items:center">Serate <select id="clF" style="width:auto"><option value="all">Tutte</option>${loc.length?`<optgroup label="Locali">${loc.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}${fm.length?`<optgroup label="Format">${fm.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}</select></label></div>
+  <label style="display:flex;gap:6px;align-items:center">Serate <select id="clF" style="width:auto"><option value="all">Tutte</option>${loc.length?`<optgroup label="Locali">${loc.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</optgroup>`:''}${fm.length?`<optgroup label="Format">${fm.map(l=>`<option value="${l.id}" ${S.rep===l.id?'selected':''}>${esc(l.nome)}${l.eta_min?' · '+l.eta_min+'+':''}</option>`).join('')}</optgroup>`:''}</select></label></div>
   <p class="note" style="margin:0 0 8px">${k==='pr'?'PR: solo i risultati personali.':`${k==='staff'?'Capi staff':'Capi PR'}: personali + tutto il loro gruppo.`} Totale persone = TicketSMS + tavoli; media = totale persone diviso le serate con almeno 1 persona.</p>
   ${righe.length?`<div class="tbl s"><table><thead><tr><th class="n">#</th><th>Nome</th><th class="n">Serate</th>${th('b','TicketSMS')}${th('t','Tavoli')}${th('tot','Totale persone')}${th('media','Media persone')}</tr></thead><tbody>
   ${righe.map((x,i)=>`<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${x.p.id}">${esc(nome(x.p))}</button>${x.p.parent&&byId(x.p.parent)?`<span class="note i">${esc(nome(byId(x.p.parent)))}</span>`:''}</td><td class="n">${x.n}</td><td class="n">${x.b}</td><td class="n">${x.t}</td><td class="n"><b>${x.tot}</b></td><td class="n">${m1(x.media)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>`}
@@ -251,7 +252,7 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   const best=ser.reduce((b,s)=>{const v=sumSer(s).b;return !b||v>b.v?{v,s}:b},null);
   const m1=n=>n.toFixed(1).replace('.',',');
   return `<div class="top"><div class="sp"><h2>Report risultati</h2><p class="sub">Un PR conta in una serata solo se ha almeno 1 biglietto o 1 tavolo.</p></div></div>
-  <div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome)).join('')}</div>
+  <div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':''))).join('')}</div>
   <h3 style="font-size:18px">${esc(titolo)}</h3>
   <div class="kpis"><div class="kpi"><b>${ser.length}</b><span>serate</span></div><div class="kpi"><b>${tot.b}</b><span>biglietti TicketSMS</span></div>
   <div class="kpi"><b>${tot.t}</b><span>tavoli</span></div><div class="kpi"><b>${ser.length?m1((tot.b+tot.t)/ser.length):'0'}</b><span>persone medie a serata (TicketSMS + tavoli)</span></div>
@@ -272,7 +273,7 @@ const PAL=['#e3301c','#ff8a1f','#2f7fd8','#1f9e6e','#ffbf1f','#8a4fd1','#d6337f'
 function scopeTabs(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it')),fm=S.loc.filter(l=>l.tipo==='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
   if(S.rep!=='all'&&!S.loc.some(l=>l.id===S.rep))S.rep='all';
   const tb=(k,t)=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${esc(t)}</button>`;
-  return `<div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome)).join('')}</div>`}
+  return `<div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':''))).join('')}</div>`}
 function vPersona(){const id=location.hash.slice(9),p=byId(id);
   if(!p)return `<div class="top"><div class="sp"><h2>Persona non trovata</h2><p class="sub">Potrebbe essere stata eliminata.</p></div><a class="btn" href="#archivio" style="display:inline-flex;align-items:center;text-decoration:none">Torna all'archivio</a></div>`;
   const ser=serOrd().filter(s=>S.rep==='all'||s.loc===S.rep||s.fmt===S.rep);
@@ -361,12 +362,12 @@ async function eliminaPR(id,b){const f=figli(id),par=byId(id)?.parent;
 /* ---------- scheda serata ---------- */
 function openSerata(id){const s=id?S.ser.find(x=>x.id===id):{data:new Date().toISOString().slice(0,10),ris:{}};if(!s)return;
   S.draft={k:'ser',id,ris:{...(s.ris||{})}};S.rq='';
-  const os=(t,sel)=>`<option value="">Nessuno</option>`+S.loc.filter(l=>(l.tipo==='format')===(t==='format')).sort((a,b)=>a.nome.localeCompare(b.nome,'it')).map(l=>`<option value="${l.id}" ${l.id===sel?'selected':''}>${esc(l.nome)}</option>`).join('')+`<option value="__new">+ Nuovo ${t}…</option>`;
+  const os=(t,sel)=>`<option value="">Nessuno</option>`+S.loc.filter(l=>(l.tipo==='format')===(t==='format')).sort((a,b)=>a.nome.localeCompare(b.nome,'it')).map(l=>`<option value="${l.id}" ${l.id===sel?'selected':''}>${esc(l.nome)}${l.tipo==='format'&&l.eta_min?' · '+l.eta_min+'+':''}</option>`).join('')+`<option value="__new">+ Nuovo ${t}…</option>`;
   S.osel=os;
   $('#sheet').innerHTML=`<div class="row"><h2 class="sp">${id?esc(s.nome||'Serata'):'Nuova serata'}</h2><button class="ghost" data-x="1">Chiudi</button></div>
   <div class="form"><label>Data<input id="s-data" type="date" value="${esc(s.data||'')}"></label><label>Nome serata<input id="s-nome" value="${esc(s.nome||'')}" placeholder="Es. VidaLoca"></label>
   <label>Locale<select id="s-loc">${os('locale',s.loc)}</select></label><label>Format<select id="s-fmt">${os('format',s.fmt)}</select></label>
-  <div class="w row" id="s-new" hidden><input id="s-newN" style="flex:2 1 200px;width:auto"><button class="pri" id="s-newA">Crea</button><button class="ghost" id="s-newX">Annulla</button></div></div>
+  <div class="w row" id="s-new" hidden><input id="s-newN" style="flex:2 1 200px;width:auto"><input id="s-newE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima" style="flex:1 1 120px;width:auto" hidden><button class="pri" id="s-newA">Crea</button><button class="ghost" id="s-newX">Annulla</button></div></div>
   <div class="row"><h3 class="sp" style="margin:0">Risultati PR</h3><span class="tot"><b id="sT">0</b> bigl. · <b id="sV">0</b> tav. · <b id="sN">0</b> PR a segno</span></div>
   <input id="s-q" type="search" placeholder="Cerca un PR…" style="margin-top:8px"><div class="rl" id="rl"></div>
   <details><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">Incolla una lista (una riga per PR: Nome Cognome biglietti tavoli)</summary>
@@ -375,13 +376,15 @@ function openSerata(id){const s=id?S.ser.find(x=>x.id===id):{data:new Date().toI
   listaRis();
   let nuovoTipo=null,prec={locale:s.loc||'',format:s.fmt||''};
   const selDi=t=>$(t==='format'?'#s-fmt':'#s-loc');
-  for(const t of ['locale','format'])selDi(t).onchange=e=>{if(e.target.value==='__new'){nuovoTipo=t;$('#s-new').hidden=false;$('#s-newN').placeholder='Nome del nuovo '+t;$('#s-newN').value='';$('#s-newN').focus()}else prec[t]=e.target.value};
+  for(const t of ['locale','format'])selDi(t).onchange=e=>{if(e.target.value==='__new'){nuovoTipo=t;$('#s-new').hidden=false;$('#s-newN').placeholder='Nome del nuovo '+t;$('#s-newN').value='';$('#s-newE').hidden=t!=='format';$('#s-newE').value='';$('#s-newN').focus()}else prec[t]=e.target.value};
   const chiudiNuovo=()=>{if(nuovoTipo)selDi(nuovoTipo).value=prec[nuovoTipo];nuovoTipo=null;$('#s-new').hidden=true};
   $('#s-newX').onclick=chiudiNuovo;
+  $('#s-newE').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#s-newA').click()}};
   $('#s-newN').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#s-newA').click()}};
-  $('#s-newA').onclick=async()=>{const n=$('#s-newN').value.trim(),t=nuovoTipo,m=$('#sM');if(!n){m.textContent='Scrivi il nome del nuovo '+t+'.';return}
+  $('#s-newA').onclick=async()=>{const n=$('#s-newN').value.trim(),t=nuovoTipo,m=$('#sM'),eta=$('#s-newE').value;if(!n){m.textContent='Scrivi il nome del nuovo '+t+'.';return}
     const esiste=S.loc.find(l=>l.tipo===t&&norm(l.nome)===norm(n));
-    try{if(!esiste)await api('POST','/api/locali',{nome:n,tipo:t});await load();
+    if(!esiste&&t==='format'&&!eta){m.className='msg';m.textContent='Indica l\'età minima del format.';return}
+    try{if(!esiste)await api('POST','/api/locali',{nome:n,tipo:t,eta_min:eta});await load();
       const nl=S.loc.find(l=>l.tipo===t&&norm(l.nome)===norm(n));
       for(const k of ['locale','format'])selDi(k).innerHTML=S.osel(k,k===t?nl?.id:prec[k]);
       prec[t]=nl?.id||'';nuovoTipo=null;$('#s-new').hidden=true;m.className='msg ok';m.textContent=esiste?`${n} esisteva già: l'ho selezionato.`:`${t==='format'?'Format':'Locale'} "${n}" creato.`}
@@ -411,6 +414,13 @@ async function salvaSerata(id){const m=$('#sM');m.className='msg';const d={data:
   for(const k of Object.keys(S.draft.ris)){const r=R(S.draft,k);if(r.b>=1||r.t>=1)d.ris[k]={b:r.b,t:r.t}}
   if(!S.db){m.textContent='Archivio non raggiungibile: impossibile salvare.';return}
   $('#sS').disabled=true;try{const c=S.db.collection('serate');await (id?c.doc(id):c.doc()).set(d);chiudi();toast('Serata salvata')}catch(e){m.textContent='Errore nel salvataggio: '+(e.message||e.code);$('#sS').disabled=false}}
+function openLoc(id){const l=S.loc.find(x=>x.id===id);if(!l)return;S.draft={k:'loc',id};
+  $('#sheet').innerHTML=`<div class="row"><h2 class="sp">${l.tipo==='format'?'Format':'Locale'}</h2><button class="ghost" data-x="1">Chiudi</button></div>
+  <div class="form"><label>Nome<input id="e-nome" value="${esc(l.nome)}"></label>${l.tipo==='format'?`<label>Età minima del target<input id="e-eta" type="number" inputmode="numeric" min="6" max="99" value="${esc(l.eta_min||'')}" placeholder="es. 14"></label>`:''}</div>
+  <p class="msg" id="eM"></p><div class="row"><button class="pri" id="eS">Salva</button></div>`;
+  $('#eS').onclick=async()=>{const b={nome:$('#e-nome').value.trim(),eta_min:l.tipo==='format'?$('#e-eta').value:null};
+    try{await api('PUT','/api/locali/'+id,b);chiudi();toast('Salvato');await load()}catch(er){$('#eM').textContent=er.message}};
+  $('#modal').classList.add('on');$('#e-nome').focus()}
 function chiudi(){$('#modal').classList.remove('on');S.draft=null}
 
 /* ---------- eventi ---------- */
@@ -422,16 +432,18 @@ document.addEventListener('click',async e=>{const th=e.target.closest('th[data-s
   else if(t.id==='aA'){const em=$('#aE').value.trim(),pid=$('#aP').value;if(!em||!pid){$('#aM').textContent='Scrivi l\'email e scegli il capo staff.';return}
     t.disabled=true;try{await api('POST','/api/utenti',{email:em,persona_id:pid});toast('Accesso abilitato');await load()}catch(er){$('#aM').textContent=er.message;t.disabled=false}}
   else if(d.du){if(!t.dataset.c){t.dataset.c=1;t.textContent='Conferma';return}try{await api('DELETE','/api/utenti/'+encodeURIComponent(d.du));toast('Accesso tolto');await load()}catch(er){toast(er.message)}}
-  else if(t.id==='lA'){const n=$('#lN').value.trim(),ty=$('#lT').value;if(!n){$('#lM').textContent='Scrivi il nome.';return}
+  else if(d.el)openLoc(d.el);
+  else if(t.id==='lA'){const n=$('#lN').value.trim(),ty=$('#lT').value,eta=$('#lE').value;if(!n){$('#lM').textContent='Scrivi il nome.';return}
+    if(ty==='format'&&!eta){$('#lM').textContent='Indica l\'età minima del format.';return}
     if(S.loc.some(l=>norm(l.nome)===norm(n)&&l.tipo===ty)){$('#lM').textContent='Esiste già.';return}
-    try{await api('POST','/api/locali',{nome:n,tipo:ty});toast('Aggiunto');await load()}catch(er){$('#lM').textContent='Errore: '+(er.message||er.code)}}
+    try{await api('POST','/api/locali',{nome:n,tipo:ty,eta_min:eta});toast('Aggiunto');await load()}catch(er){$('#lM').textContent='Errore: '+(er.message||er.code)}}
   else if(d.dl){const u=S.ser.filter(s=>s.loc===d.dl||s.fmt===d.dl).length;if(u){$('#lM').textContent=`Usato in ${u} serate: non si può eliminare.`;return}
     if(!t.dataset.c){t.dataset.c=1;t.textContent='Elimina?';return}try{await S.db.collection('locali').doc(d.dl).delete();toast('Eliminato')}catch(er){$('#lM').textContent='Errore: '+(er.message||er.code)}}});
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')chiudi()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').classList.contains('on'))chiudi()});
 const upd=()=>{$('#tb').innerHTML=righe();const c=$('#cnt');if(c)c.textContent=`${filtrati().length} di ${S.pr.length} persone`};
 document.addEventListener('input',e=>{const id=e.target.id;if(id==='q'){S.q=e.target.value;upd()}});
-document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}else if(id==='clS'){S.clS=e.target.value;render()}else if(id==='clF'){S.rep=e.target.value;S.repPr='';render()}});
+document.addEventListener('change',e=>{const id=e.target.id;if(['fR','fS','fZ'].includes(id)){S[id]=e.target.value;upd()}else if(id==='rpP'){S.repPr=e.target.value;render()}else if(id==='lT'){$('#lE').hidden=e.target.value!=='format'}else if(id==='clS'){S.clS=e.target.value;render()}else if(id==='clF'){S.rep=e.target.value;S.repPr='';render()}});
 window.addEventListener('hashchange',render);
 
 /* ---------- dati (API del sito) ---------- */
