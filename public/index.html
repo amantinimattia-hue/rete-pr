@@ -3,31 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rete PR</title>
+<title>Happy.PR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Unbounded:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
-/* VOICE: gestionale denso e veloce, pensato per centinaia di nomi
-   IDEA: il pass del backstage: fascia arancio piena, etichette nette, numeri grossi
+/* VOICE: il tool interno del gruppo HAPPY.FAM: fratello maggiore, chiaro, mai urlato
+   IDEA: il pass dello staff HAPPY.FAM: fascia nero notte, wordmark col puntino arancio, crema al posto del bianco
    PICTURE: lo strumento stesso, tabelle fitte, albero dello staff, colonne delle serate
-   COLOUR and TYPE: arancio dominante, rosso per i biglietti, giallo per i tavoli; Plus Jakarta Sans
-   LAYOUT: barra arancio compatta con le sezioni a pillola, contenuto a griglia stretta, liste lunghe che scorrono nel loro riquadro */
+   COLOUR and TYPE: nero notte + crema, arancio Happy per accenti e TicketSMS, nero per i tavoli, grigio caldo per l'incasso;
+                    colori di fascia (14+ giallo, 16+ lime, 18+ fucsia, 20+ blu) solo come puntino dei format; Unbounded titoli, DM Sans testi
+   LAYOUT: barra nera compatta con le sezioni a pillola, contenuto a griglia stretta, liste lunghe che scorrono nel loro riquadro */
 :root{color-scheme:light dark;
---bg:light-dark(#ffffff,#140c08);--panel:light-dark(#fff5ee,#22150e);--line:light-dark(#f1e1d6,#3a271c);
---ink:light-dark(#2a1309,#fff1e8);--mute:light-dark(#8a6552,#c3a593);
---or:#ff6a13;--inc:light-dark(#7a2e0e,#f3b98f);--red:light-dark(#e3301c,#ff5a3d);--yel:#ffbf1f;--ok:light-dark(#1f7a4d,#5fd39a)}
+--bg:light-dark(#FFF5E6,#141414);--panel:light-dark(#F9EAD3,#1F1D1B);--line:light-dark(#EBD9BF,#34302C);
+--ink:light-dark(#141414,#FFF5E6);--mute:light-dark(#6E6760,#ADA59C);
+--acc:#FF5A1F;--acct:light-dark(#C23A0B,#FF7A45);--grey:#8C857D;
+--c-b:#FF5A1F;--c-t:light-dark(#141414,#FFF5E6);--c-e:#8C857D;
+--f14:#FFC300;--f16:#2ED573;--f18:#FF2E7E;--f20:#3D5AFE;--ok:light-dark(#1f7a4d,#5fd39a);
+--red:var(--acct);--or:var(--acc);--yel:var(--acc);--inc:var(--c-e)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Plus Jakarta Sans",system-ui,sans-serif;overflow-x:clip}
-header{background:var(--or);color:#2a1309;padding:12px max(3vw,14px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "DM Sans",system-ui,sans-serif;overflow-x:clip}
+header{background:#141414;color:#FFF5E6;padding:12px max(3vw,14px)}
 .hd{max-width:1400px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center}
-header h1{margin:0;font-size:24px;font-weight:800;line-height:1;letter-spacing:-.02em}
-header p{margin:3px 0 0;font-size:13px;font-weight:500;color:#5a2408}header p a{color:inherit;font-weight:700}
-nav{display:flex;gap:4px;overflow-x:auto;background:rgb(0 0 0/.12);padding:4px;border-radius:12px;margin-left:auto}
-nav a{flex:none;color:#2a1309;text-decoration:none;padding:7px 14px;border-radius:9px;font-weight:700;font-size:14px}
-nav a.on{background:#fff;box-shadow:0 1px 3px rgb(0 0 0/.15)}
+header h1{margin:0;font:900 24px/1 Unbounded,"DM Sans",sans-serif;text-transform:uppercase;letter-spacing:.01em}
+.fdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.dot{display:inline-block;width:.35em;height:.35em;border-radius:50%;background:#FF5A1F;margin:0 .09em;vertical-align:baseline}
+header p{margin:5px 0 0;font-size:12.5px;font-weight:500;color:#C9C0B5}header p a{color:#FF7A45;font-weight:700}
+nav{display:flex;gap:4px;overflow-x:auto;background:#262321;padding:4px;border-radius:12px;margin-left:auto}
+nav a{flex:none;color:#FFF5E6;text-decoration:none;padding:7px 14px;border-radius:9px;font-weight:700;font-size:14px}
+nav a.on{background:#FF5A1F;color:#141414}
 main{max-width:1400px;margin:0 auto;padding:18px max(3vw,14px) 48px}
-h2{font-size:26px;line-height:1.1;margin:0;letter-spacing:-.02em;font-weight:800}
+h2{font:800 24px/1.15 Unbounded,"DM Sans",sans-serif;text-transform:uppercase;margin:0;letter-spacing:.01em}
 h3{font-size:14px;margin:0 0 8px;font-weight:700}
 .sub{color:var(--mute);margin:2px 0 0;font-size:13px}
 .top{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 14px}
@@ -35,7 +41,7 @@ h3{font-size:14px;margin:0 0 8px;font-weight:700}
 .sp{flex:1}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:0 0 12px}
 .kpi{background:var(--panel);border-radius:10px;padding:8px 12px;border-top:3px solid var(--or)}
-.kpi b{display:block;font-size:22px;line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums}
+.kpi b{display:block;font:800 21px/1.2 Unbounded,"DM Sans",sans-serif;font-variant-numeric:tabular-nums}
 .kpi span{color:var(--mute);font-size:12.5px}
 .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;margin:0 0 12px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:10px;margin:0 0 12px}
@@ -44,13 +50,13 @@ h3{font-size:14px;margin:0 0 8px;font-weight:700}
 .bar{display:grid;grid-template-columns:minmax(0,8.5em) minmax(0,1fr) 2.4em;gap:6px;align-items:center;font-size:13px;margin:2px 0}
 .bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt{height:9px;background:var(--line);border-radius:5px;overflow:hidden}
-.bt i{display:block;height:100%;background:linear-gradient(90deg,var(--or),var(--red));border-radius:5px}
+.bt i{display:block;height:100%;background:var(--acc);border-radius:5px}
 .bar b{text-align:right;font-variant-numeric:tabular-nums}
 button,.btn{font:inherit;font-weight:700;min-height:38px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;font-size:14px}
-button.pri{background:var(--red);border-color:var(--red);color:#fff}
+button.pri{background:var(--acc);border-color:var(--acc);color:#141414}
 button.ghost{background:none;border-color:transparent;color:var(--red);padding:0 6px}
 button.danger{color:var(--red);border-color:var(--red)}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav a:focus-visible,summary:focus-visible{outline:3px solid var(--yel);outline-offset:2px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav a:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 input,select,textarea{font:inherit;font-size:16px;min-height:38px;padding:6px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
 textarea{min-height:90px}
 label{display:block;font-size:12.5px;color:var(--mute);font-weight:600}
@@ -67,13 +73,13 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .note{color:var(--mute);font-size:12px;font-weight:400}
 td .note.i{display:inline;margin-left:8px}td .note{display:block;max-width:28ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--line);white-space:nowrap}
-.tag.staff{background:var(--red);color:#fff}.tag.capo{background:var(--yel);color:#2a1309}
+.tag.staff{background:var(--ink);color:var(--bg)}.tag.capo{background:var(--acc);color:#141414}
 .link{background:none;border:0;padding:0;min-height:0;color:inherit;font-weight:700;text-align:left;cursor:pointer;font-size:inherit}
 .link:hover{color:var(--red);text-decoration:underline}
 .empty{color:var(--mute);font-size:13px;margin:4px 0}
 .tree{display:grid;gap:8px}
-.node{background:var(--panel);border-radius:12px;padding:8px 12px;border-left:4px solid var(--red)}
-.node .node{margin-top:6px;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--red)}.node>summary{list-style:none;cursor:pointer}.node>summary::-webkit-details-marker{display:none}
+.node{background:var(--panel);border-radius:12px;padding:8px 12px;border-left:4px solid var(--ink)}
+.node .node{margin-top:6px;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--ink)}.node>summary{list-style:none;cursor:pointer}.node>summary::-webkit-details-marker{display:none}
 .node>summary::before{content:"▸";color:var(--mute);margin-right:2px;display:inline-block;transition:transform .15s}
 .node[open]>summary::before{transform:rotate(90deg)}
 .node .c{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--yel);border-radius:10px;padding:6px 10px;margin-top:6px}
@@ -86,7 +92,7 @@ td .note.i{display:inline;margin-left:8px}td .note{display:block;max-width:28ch;
 .tabs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:0 0 12px}
 .tabs small{color:var(--mute);margin:0 2px 0 8px;font-size:12px;font-weight:600}
 .tabs button{min-height:32px;border-radius:99px;font-size:13px;padding:0 12px}
-.tabs button.on{background:var(--or);color:#2a1309;border-color:var(--or)}
+.tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .fig{position:relative;min-height:200px}.fig.sm{min-height:140px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
 .fig text{font:11px "Plus Jakarta Sans",sans-serif;fill:var(--mute)}.fig .v{fill:var(--ink);font-weight:700}
 .scroll{overflow-x:auto}
@@ -105,7 +111,7 @@ td .note.i{display:inline;margin-left:8px}td .note{display:block;max-width:28ch;
 details>summary{cursor:pointer}
 #toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:10}
 #toast.on{opacity:1}
-#banner{display:none;background:var(--red);color:#fff;padding:6px max(3vw,14px);font-size:13px}
+#banner{display:none;background:var(--acct);color:#FFF5E6;padding:6px max(3vw,14px);font-size:13px}
 @media(prefers-reduced-motion:reduce){#toast,.node>summary::before{transition:none}}
 @media(max-width:800px){.filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.filters>:first-child{grid-column:1/-1}nav{margin-left:0}}
 @media(max-width:600px){.form{grid-template-columns:minmax(0,1fr)}.stack thead{display:none}.stack tr{display:grid;padding-block:6px;border-top:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:2px 10px;padding-inline-start:calc(7em + 10px);text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:6.5em;margin-inline-start:-7em;color:var(--mute);font-size:12px}.stack td:empty{display:none}.bar{grid-template-columns:minmax(0,7em) minmax(0,1fr) 2.2em}}
@@ -114,7 +120,7 @@ details>summary{cursor:pointer}
 </head>
 <body>
 <header><div class="hd">
-  <div><h1>Rete PR</h1><p id="who">Anagrafica, struttura dello staff e risultati delle serate</p></div>
+  <div><h1 aria-label="Happy.PR">HAPPY<span class="dot"></span>PR</h1><p id="who">Il tool della rete PR di HAPPY.FAM</p></div>
   <nav id="nav">
     <a href="#archivio" data-v="archivio">Archivio</a>
     <a href="#struttura" data-v="struttura">Struttura</a>
@@ -144,6 +150,8 @@ const sortNome=(a,b)=>nome(a).localeCompare(nome(b),'it');
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2600)};
 const banner=t=>{const b=$('#banner');b.textContent=t||'';b.style.display=t?'block':'none'};
 const locName=id=>S.loc.find(l=>l.id===id)?.nome||'';
+const fasciaCol=e=>!e?'var(--grey)':e>=20?'var(--f20)':e>=18?'var(--f18)':e>=16?'var(--f16)':'var(--f14)';
+const fdot=l=>l&&l.tipo==='format'?`<i class="fdot" style="background:${fasciaCol(l.eta_min)}"></i>`:'';
 const etaTxt=l=>l&&l.tipo==='format'?(l.eta_min?l.eta_min+'+':'età da indicare'):'';
 const serOrd=()=>[...S.ser].sort((a,b)=>(a.data||'').localeCompare(b.data||''));
 const R=(s,id)=>{const x=(s.ris||{})[id];return typeof x==='number'?{b:x,t:0,e:0}:{b:+(x&&x.b)||0,t:+(x&&x.t)||0,e:+(x&&x.e)||0}};
@@ -193,7 +201,7 @@ function drawGrp(s,g){const W=s.clientWidth,H=s.clientHeight,pts=g.pts,se=g.seri
   s.innerHTML=o}
 const draw=()=>{for(const s of document.querySelectorAll('svg[data-c]')){const cg=S.charts[s.dataset.c];if(cg&&cg.grp){if(s.clientWidth)drawGrp(s,cg);continue}const pts=cg||[];const W=s.clientWidth,H=s.clientHeight;if(!W)continue;
   if(!pts.length){s.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">Nessuna serata con risultati</text>`;continue}
-  const col=/^[pq]?t$/.test(s.dataset.c)?'var(--yel)':/^[pq]?e$/.test(s.dataset.c)?'var(--inc)':'var(--red)';const L=32,R=6,T=16,B=24,iw=W-L-R,ih=H-T-B,n=pts.length,max=Math.max(1,...pts.map(p=>p.v));
+  const col=/^[pq]?t$/.test(s.dataset.c)?'var(--c-t)':/^[pq]?e$/.test(s.dataset.c)?'var(--c-e)':'var(--c-b)';const L=32,R=6,T=16,B=24,iw=W-L-R,ih=H-T-B,n=pts.length,max=Math.max(1,...pts.map(p=>p.v));
   const step=Math.max(1,Math.ceil(max/4/(max>20?5:1))*(max>20?5:1));const top=Math.ceil(max/step)*step;
   const bw=iw/n,w=Math.min(52,bw*.7),every=Math.ceil(n/Math.max(1,Math.floor(iw/(W<520?56:48))));let g='';
   for(let v=0;v<=top;v+=step){const y=T+ih-v/top*ih;g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-6}" y="${y+4}" text-anchor="end">${v}</text>`}
@@ -248,7 +256,7 @@ function vStruttura(){const ser=S.ser,T=id=>`<span class="tot">personali ${BT(ve
 
 /* ---------- serate ---------- */
 function vSerate(){const l=serOrd().reverse();
-  const chip=x=>`<span class="leaf"><button class="link" data-el="${x.id}" title="Modifica">${esc(x.nome)}</button><span ${x.tipo==='format'&&!x.eta_min?'style="color:var(--red)"':''}>${x.tipo==='format'?'format · '+etaTxt(x)+(x.misura==='incasso'?' · a incasso':''):'locale'}</span><button class="ghost" data-dl="${x.id}" aria-label="Elimina ${esc(x.nome)}">×</button></span>`;
+  const chip=x=>`<span class="leaf"><button class="link" data-el="${x.id}" title="Modifica">${fdot(x)}${esc(x.nome)}</button><span ${x.tipo==='format'&&!x.eta_min?'style="color:var(--red)"':''}>${x.tipo==='format'?'format · '+etaTxt(x)+(x.misura==='incasso'?' · a incasso':''):'locale'}</span><button class="ghost" data-dl="${x.id}" aria-label="Elimina ${esc(x.nome)}">×</button></span>`;
   return `<div class="top"><div class="sp"><h2>Serate</h2><p class="sub">Inserisci biglietti TicketSMS e tavoli di ogni PR. Chi fa 0 in entrambi non viene registrato.</p></div><button class="pri" data-ns="1">Nuova serata</button></div>
   <div class="card" style="margin-bottom:12px"><h3>Locali e format</h3><div class="chips">${S.loc.length?[...S.loc].sort((a,b)=>a.tipo.localeCompare(b.tipo)||a.nome.localeCompare(b.nome,'it')).map(chip).join(''):'<p class="empty">Aggiungi i locali e i format: ognuno avrà la sua sezione nei report.</p>'}</div>
   <div class="row"><input id="lN" placeholder="Nome locale o format" style="flex:2 1 200px;width:auto"><select id="lT" style="flex:1 1 120px;width:auto"><option value="locale">Locale</option><option value="format">Format</option></select><input id="lE" type="number" inputmode="numeric" min="6" max="99" placeholder="Età minima (es. 14)" style="flex:1 1 150px;width:auto" hidden><select id="lMis" style="flex:1 1 150px;width:auto" hidden><option value="persone">Si misura a persone</option><option value="incasso">Si misura a incasso</option></select><button id="lA">Aggiungi</button></div><p class="msg" id="lM"></p></div>
@@ -271,7 +279,7 @@ function classifica(ser,loc,fm){const k=S.clT||'pr',m1=n=>n.toFixed(1).replace('
   ${righe.map((x,i)=>`<tr><td class="n">${i+1}</td><td><button class="link" data-pg="${x.p.id}">${esc(nome(x.p))}</button>${x.p.parent&&byId(x.p.parent)?`<span class="note i">${esc(nome(byId(x.p.parent)))}</span>`:''}</td><td class="n">${x.n}</td><td class="n">${x.b}</td><td class="n">${x.t}</td><td class="n"><b>${x.tot}</b></td><td class="n">${m1(x.media)}</td>${inc?`<td class="n"><b>${x.e?eur(x.e):''}</b></td><td class="n">${x.ne?eur(x.emedia):''}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nessun risultato in queste serate.</p>'}</div>`}
 function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it')),fm=S.loc.filter(l=>l.tipo==='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
   if(S.rep!=='all'&&!S.loc.some(l=>l.id===S.rep))S.rep='all';
-  const tb=(k,t)=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${esc(t)}</button>`;
+  const tb=(k,t,pre='')=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${pre}${esc(t)}</button>`;
   const ser=serOrd().filter(s=>S.rep==='all'||s.loc===S.rep||s.fmt===S.rep);
   const titolo=S.rep==='all'?'Tutte le serate':locName(S.rep);
   const tot=ser.reduce((a,s)=>add(a,sumSer(s)),{b:0,t:0,e:0}),inc=tot.e>0,serInc=ser.filter(s=>sumSer(s).e>0).length;
@@ -285,7 +293,7 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   const best=ser.reduce((b,s)=>{const v=sumSer(s).b;return !b||v>b.v?{v,s}:b},null);
   const m1=n=>n.toFixed(1).replace('.',',');
   return `<div class="top"><div class="sp"><h2>Report risultati</h2><p class="sub">Un PR conta in una serata solo se ha almeno 1 biglietto, 1 tavolo o un incasso. Persone ed euro non si sommano mai tra loro.</p></div></div>
-  <div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':'')+(l.misura==='incasso'?' · €':''))).join('')}</div>
+  <div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':'')+(l.misura==='incasso'?' · €':''),fdot(l))).join('')}</div>
   <h3 style="font-size:18px">${esc(titolo)}</h3>
   <div class="kpis"><div class="kpi"><b>${ser.length}</b><span>serate</span></div><div class="kpi"><b>${tot.b}</b><span>biglietti TicketSMS</span></div>
   <div class="kpi"><b>${tot.t}</b><span>tavoli</span></div><div class="kpi"><b>${ser.length?m1((tot.b+tot.t)/ser.length):'0'}</b><span>persone medie a serata (TicketSMS + tavoli)</span></div>
@@ -299,7 +307,7 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
   ${classifica(ser,loc,fm)}
   <div class="grid2">
   <div class="card"><h3>Trend di un PR</h3><label>Persona (risultati personali + di tutti quelli sotto di lui)<select id="rpP">${trendL.map(([p])=>`<option value="${p.id}" ${p.id===pSel?'selected':''}>${esc(nome(p))}${p.ruolo!=='pr'?' · '+RUOLI[p.ruolo]:''}</option>`).join('')||'<option>Nessuno</option>'}</select></label>
-  ${(()=>{const hasE=!!(pSel&&trendV.get(pSel)?.e),serie=[{n:'TicketSMS',c:'var(--red)'},{n:'Tavoli',c:'var(--yel)'}].concat(hasE?[{n:'Incasso tavoli',c:'var(--inc)',eur:true}]:[]);
+  ${(()=>{const hasE=!!(pSel&&trendV.get(pSel)?.e),serie=[{n:'TicketSMS',c:'var(--c-b)'},{n:'Tavoli',c:'var(--c-t)'}].concat(hasE?[{n:'Incasso tavoli',c:'var(--c-e)',eur:true}]:[]);
     const sw=c=>`<i style="width:10px;height:10px;border-radius:3px;background:${c};display:inline-block;margin-right:4px"></i>`;
     return `<div class="row" style="gap:12px;margin:10px 0 0;font-size:12.5px;color:var(--mute)">${serie.map(x=>`<span>${sw(x.c)}${x.n}</span>`).join('')}<span>· ogni colore ha la sua scala: la colonna più alta di ogni colore è il massimo di quella misura; i numeri sono i valori reali</span></div>`
       +groupChart('pg',{serie,pts:pSel?ser.map(s=>{const r=team(pSel,[s]);return {...pt(s,0),v:[r.b,r.t].concat(hasE?[Math.round(r.e/100)]:[])}}):[]})})()}</div></div>
@@ -307,11 +315,11 @@ function vReport(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.no
 
 
 /* ---------- pagina persona ---------- */
-const PAL=['#e3301c','#ff8a1f','#2f7fd8','#1f9e6e','#ffbf1f','#8a4fd1','#d6337f','#4fb3a9','#a0522d','#6b7a8f','#b38f00','#3b3b98','#ff6f91','#7aa83a','#c45c00','#5e7ce2'];
+const PAL=['#FF5A1F','#3D5AFE','#2ED573','#FF2E7E','#FFC300','#8C857D','#C23A0B','#00A3A3','#7B4BD6','#5B8C2A','#B0306A','#2C7FB8','#E08A00','#4A4440','#9C6ADE','#1F9E6E'];
 function scopeTabs(){const loc=S.loc.filter(l=>l.tipo!=='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it')),fm=S.loc.filter(l=>l.tipo==='format').sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
   if(S.rep!=='all'&&!S.loc.some(l=>l.id===S.rep))S.rep='all';
-  const tb=(k,t)=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${esc(t)}</button>`;
-  return `<div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':'')+(l.misura==='incasso'?' · €':''))).join('')}</div>`}
+  const tb=(k,t,pre='')=>`<button data-rp="${k}" class="${S.rep===k?'on':''}">${pre}${esc(t)}</button>`;
+  return `<div class="tabs">${tb('all','Complessivo')}${loc.length?'<small>Locali</small>':''}${loc.map(l=>tb(l.id,l.nome)).join('')}${fm.length?'<small>Format</small>':''}${fm.map(l=>tb(l.id,l.nome+(l.eta_min?' · '+l.eta_min+'+':'')+(l.misura==='incasso'?' · €':''),fdot(l))).join('')}</div>`}
 function vPersona(){const id=location.hash.slice(9),p=byId(id);
   if(!p)return `<div class="top"><div class="sp"><h2>Persona non trovata</h2><p class="sub">Potrebbe essere stata eliminata.</p></div><a class="btn" href="#archivio" style="display:inline-flex;align-items:center;text-decoration:none">Torna all'archivio</a></div>`;
   const ser=serOrd().filter(s=>S.rep==='all'||s.loc===S.rep||s.fmt===S.rep);
@@ -361,7 +369,7 @@ function vPunti(){const ad=S.me.ruolo==='admin',k=S.ptT||'pr',imp=S.imp||{punti_
   if(d&&d.err)corpo=`<p class="empty">Impossibile caricare la classifica: ${esc(d.err)}</p>`;
   else if(d){const r=d.righe.filter(x=>x.ruolo===k).sort((a,b)=>b.punti-a.punti||a.nome.localeCompare(b.nome,'it'));
     let pos=0,prev=null;r.forEach((x,i)=>{if(x.punti!==prev){pos=i+1;prev=x.punti}x.pos=pos});
-    const riga=x=>`<tr ${x.mio?'style="background:var(--panel)"':''}><td class="n" style="width:3.5em">${x.pos<=3&&x.punti?`<span class="tag" style="background:${['var(--yel)','#d9d4d0','#e8a36b'][x.pos-1]};color:#2a1309">${x.pos}°</span>`:x.pos}</td><td>${x.id?`<button class="link" data-pg="${x.id}">${esc(x.nome)}</button>`:`<b>${esc(x.nome)}</b>`}${x.mio?' <span class="tag capo">tuo ramo</span>':''}</td><td class="n" style="font-size:16px;width:4.5em"><b>${x.punti}</b></td></tr>`;
+    const riga=x=>`<tr ${x.mio?'style="background:var(--panel)"':''}><td class="n" style="width:3.5em">${x.pos<=3&&x.punti?`<span class="tag" style="background:${['#FF5A1F','#8C857D','#E3CFB1'][x.pos-1]};color:#141414">${x.pos}°</span>`:x.pos}</td><td>${x.id?`<button class="link" data-pg="${x.id}">${esc(x.nome)}</button>`:`<b>${esc(x.nome)}</b>`}${x.mio?' <span class="tag capo">tuo ramo</span>':''}</td><td class="n" style="font-size:16px;width:4.5em"><b>${x.punti}</b></td></tr>`;
     const tabella=l=>`<div class="tbl" style="max-height:none"><table><thead><tr><th class="n">#</th><th>Nome</th><th class="n">Punti</th></tr></thead><tbody>${l.map(riga).join('')}</tbody></table></div>`;
     const meta=Math.ceil(r.length/2);
     corpo=r.length?`<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));align-items:start">${tabella(r.slice(0,meta))}${r.length>1?tabella(r.slice(meta)):''}</div>`:'<p class="empty">Nessuno ha ancora risultati in questa stagione.</p>'}
