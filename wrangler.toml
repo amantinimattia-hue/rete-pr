@@ -1,0 +1,20 @@
+name = "rete-pr"
+main = "dist/worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[build]
+command = "node build.mjs"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rete-pr"
+database_id = "7cda0062-7710-4b1c-8177-4e399e38f99f"
+
+[vars]
+# Email degli amministratori, separate da virgola
+ADMIN_EMAILS = ""
+# Dominio del team Zero Trust, es. nome-team.cloudflareaccess.com
+TEAM_DOMAIN = ""
+# "Application Audience (AUD) Tag" dell'applicazione Access
+POLICY_AUD = ""

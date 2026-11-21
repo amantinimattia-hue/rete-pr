@@ -1,0 +1,210 @@
+// Rete PR — Worker Cloudflare: serve l'app e le API su D1.
+// Accesso: Cloudflare Access (PIN via email) davanti al Worker; qui si verifica il token
+// e si decide chi è admin (ADMIN_EMAILS) e quale capo staff corrisponde a ogni email (tabella utenti).
+
+const HTML = "__HTML__";
+
+const RUOLI = ['staff', 'capo', 'pr'];
+const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+const err = (m, s = 400) => json({ error: m }, s);
+const SEC = { 'x-frame-options': 'DENY', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff' };
+const page = (body, s = 200) => new Response(body, { status: s, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SEC } });
+const msgPage = (t, m) => page(`<!DOCTYPE html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rete PR</title><body style="font:16px system-ui;max-width:520px;margin:15vh auto;padding:0 20px;color:#2a1309"><h1 style="color:#e3301c">${t}</h1><p>${m}</p><p><a href="/cdn-cgi/access/logout">Esci e accedi con un'altra email</a></p></body></html>`, 403);
+
+/* ---------- verifica del token di Cloudflare Access ---------- */
+let JWKS = null, JWKS_T = 0;
+const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
+async function chiavi(env) {
+  if (JWKS && Date.now() - JWKS_T < 3600e3) return JWKS;
+  const r = await fetch(`https://${env.TEAM_DOMAIN}/cdn-cgi/access/certs`);
+  JWKS = (await r.json()).keys || []; JWKS_T = Date.now(); return JWKS;
+}
+async function verifica(token, env) {
+  const [h, p, s] = (token || '').split('.'); if (!s) return null;
+  try {
+    const head = JSON.parse(new TextDecoder().decode(b64u(h)));
+    const pay = JSON.parse(new TextDecoder().decode(b64u(p)));
+    const k = (await chiavi(env)).find(x => x.kid === head.kid); if (!k) return null;
+    const key = await crypto.subtle.importKey('jwk', { kty: k.kty, n: k.n, e: k.e, alg: 'RS256', ext: true }, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    if (!await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64u(s), new TextEncoder().encode(h + '.' + p))) return null;
+    const aud = Array.isArray(pay.aud) ? pay.aud : [pay.aud];
+    if (!aud.includes(env.POLICY_AUD)) return null;
+    if (!pay.exp || pay.exp * 1000 < Date.now()) return null;
+    if (pay.iss !== `https://${env.TEAM_DOMAIN}`) return null;
+    return (pay.email || '').toLowerCase() || null;
+  } catch { return null; }
+}
+async function chiSei(req, env) {
+  const url = new URL(req.url);
+  // Solo per i test in locale (wrangler dev su localhost): mai attivo sul sito pubblicato.
+  if (env.DEV_EMAIL && ['localhost', '127.0.0.1'].includes(url.hostname)) return (req.headers.get('x-dev-email') || env.DEV_EMAIL).toLowerCase();
+  if (!env.TEAM_DOMAIN || !env.POLICY_AUD) return { config: true };
+  return verifica(req.headers.get('Cf-Access-Jwt-Assertion'), env);
+}
+
+/* ---------- utilità sui dati ---------- */
+const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 20);
+const txt = (v, n = 200) => (v == null ? '' : String(v)).trim().slice(0, n);
+async function tutte(env) { return (await env.DB.prepare('SELECT * FROM persone').all()).results; }
+function ramo(persone, rootId) {
+  const ids = new Set([rootId]); let cambiato = true;
+  while (cambiato) { cambiato = false; for (const p of persone) if (p.parent && ids.has(p.parent) && !ids.has(p.id)) { ids.add(p.id); cambiato = true; } }
+  return ids;
+}
+function pulisci(b) {
+  const anno = b.anno === '' || b.anno == null ? null : parseInt(b.anno, 10);
+  return {
+    nome: txt(b.nome, 80), cognome: txt(b.cognome, 80), anno: Number.isFinite(anno) ? anno : null,
+    scuola: txt(b.scuola, 120), zona: txt(b.zona, 120), tel: txt(b.tel, 40), note: txt(b.note, 1000),
+    ruolo: RUOLI.includes(b.ruolo) ? b.ruolo : 'pr', parent: b.parent ? txt(b.parent, 40) : null,
+  };
+}
+// Regole dell'albero, uguali per tutti
+function controllaAlbero(d, id, persone) {
+  if (!d.nome && !d.cognome) return 'Serve almeno il nome o il cognome.';
+  if (d.anno != null && (d.anno < 1950 || d.anno > 2025)) return 'Anno di nascita non valido.';
+  if (d.ruolo === 'staff') d.parent = null;
+  if (d.parent) {
+    if (d.parent === id) return 'Una persona non può essere superiore di sé stessa.';
+    const par = persone.find(p => p.id === d.parent); if (!par) return 'Superiore non trovato.';
+    if (d.ruolo === 'capo' && par.ruolo !== 'staff') return 'Un Capo PR può stare solo sotto un Capo staff.';
+    if (d.ruolo === 'pr' && par.ruolo === 'pr') return 'Un PR può stare solo sotto un Capo staff o un Capo PR.';
+  }
+  if (id) {
+    const figli = persone.filter(p => p.parent === id);
+    if (d.ruolo === 'pr' && figli.length) return `Ha ${figli.length} persone collegate: spostale prima di farlo diventare PR.`;
+    if (d.ruolo === 'capo' && figli.some(f => f.ruolo === 'capo')) return 'Ha dei Capi PR sotto di sé: spostali prima.';
+  }
+  return null;
+}
+
+/* ---------- API ---------- */
+async function api(req, env, me, path) {
+  const m = req.method, seg = path.split('/').filter(Boolean); // es. ['persone', 'id']
+  const admin = me.ruolo === 'admin';
+  if (m !== 'GET' && !(req.headers.get('content-type') || '').includes('application/json')) return err('Richiesta non valida', 415);
+  const body = m === 'POST' || m === 'PUT' ? await req.json().catch(() => ({})) : {};
+
+  if (m === 'GET' && seg[0] === 'data') {
+    const persone = await tutte(env);
+    const [loc, ser, ris] = await Promise.all([
+      env.DB.prepare('SELECT * FROM locali').all(), env.DB.prepare('SELECT * FROM serate').all(), env.DB.prepare('SELECT * FROM risultati').all()]);
+    const vis = admin ? null : ramo(persone, me.persona_id);
+    const mappa = {};
+    for (const r of ris.results) if (!vis || vis.has(r.persona_id)) (mappa[r.serata_id] ||= {})[r.persona_id] = { b: r.b, t: r.t };
+    const out = {
+      me, persone: vis ? persone.filter(p => vis.has(p.id)) : persone, locali: loc.results,
+      serate: ser.results.map(s => ({ ...s, ris: mappa[s.id] || {} })),
+    };
+    if (admin) out.utenti = (await env.DB.prepare('SELECT * FROM utenti ORDER BY email').all()).results;
+    return json(out);
+  }
+
+  if (seg[0] === 'persone') {
+    const persone = await tutte(env), id = seg[1] || null;
+    const esistente = id ? persone.find(p => p.id === id) : null;
+    if (id && !esistente) return err('Persona non trovata', 404);
+    const vis = admin ? null : ramo(persone, me.persona_id);
+    if (vis && id && !vis.has(id)) return err('Non fa parte del tuo ramo', 403);
+
+    if (m === 'DELETE' && id) {
+      if (!admin && id === me.persona_id) return err('Non puoi eliminare te stesso', 403);
+      // i collegati passano al superiore della persona eliminata
+      await env.DB.batch([
+        env.DB.prepare('UPDATE persone SET parent = ? WHERE parent = ?').bind(esistente.parent, id),
+        env.DB.prepare('DELETE FROM persone WHERE id = ?').bind(id),
+        env.DB.prepare('DELETE FROM utenti WHERE persona_id = ?').bind(id)]);
+      return json({ ok: true });
+    }
+    if (m === 'POST' || m === 'PUT') {
+      if (m === 'PUT' && !id) return err('Manca la persona');
+      const d = pulisci(body);
+      if (!admin) {
+        if (id === me.persona_id) { d.ruolo = esistente.ruolo; d.parent = esistente.parent; } // il capo staff può aggiornare solo i propri dati
+        else {
+          if (d.ruolo === 'staff') return err('Solo l\'amministratore può creare Capi staff', 403);
+          if (!d.parent || !vis.has(d.parent)) return err('Collega la persona a qualcuno del tuo ramo', 403);
+        }
+      }
+      const e = controllaAlbero(d, id, persone); if (e) return err(e);
+      const nid = id || uid(), ora = new Date().toISOString();
+      if (id) await env.DB.prepare('UPDATE persone SET nome=?,cognome=?,anno=?,scuola=?,zona=?,tel=?,note=?,ruolo=?,parent=?,aggiornato=? WHERE id=?')
+        .bind(d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, ora, id).run();
+      else await env.DB.prepare('INSERT INTO persone (id,nome,cognome,anno,scuola,zona,tel,note,ruolo,parent,creato_da,aggiornato) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(nid, d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, me.email, ora).run();
+      return json({ ok: true, id: nid });
+    }
+  }
+
+  if (!admin) return err('Solo l\'amministratore può farlo', 403);
+
+  if (seg[0] === 'locali') {
+    if (m === 'POST') {
+      const nome = txt(body.nome, 80), tipo = body.tipo === 'format' ? 'format' : 'locale';
+      if (!nome) return err('Scrivi il nome.');
+      await env.DB.prepare('INSERT INTO locali (id,nome,tipo) VALUES (?,?,?)').bind(uid(), nome, tipo).run();
+      return json({ ok: true });
+    }
+    if (m === 'DELETE' && seg[1]) {
+      const u = await env.DB.prepare('SELECT COUNT(*) n FROM serate WHERE loc=?1 OR fmt=?1').bind(seg[1]).first();
+      if (u.n) return err(`Usato in ${u.n} serate: non si può eliminare.`);
+      await env.DB.prepare('DELETE FROM locali WHERE id=?').bind(seg[1]).run(); return json({ ok: true });
+    }
+  }
+
+  if (seg[0] === 'serate') {
+    const id = seg[1] || null;
+    if (m === 'DELETE' && id) {
+      await env.DB.batch([env.DB.prepare('DELETE FROM risultati WHERE serata_id=?').bind(id), env.DB.prepare('DELETE FROM serate WHERE id=?').bind(id)]);
+      return json({ ok: true });
+    }
+    if (m === 'POST' || m === 'PUT') {
+      const data = txt(body.data, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return err('Inserisci la data della serata.');
+      const sid = id || uid(), st = [];
+      st.push(env.DB.prepare('INSERT INTO serate (id,data,nome,loc,fmt) VALUES (?1,?2,?3,?4,?5) ON CONFLICT(id) DO UPDATE SET data=?2,nome=?3,loc=?4,fmt=?5')
+        .bind(sid, data, txt(body.nome, 120), body.loc || null, body.fmt || null));
+      st.push(env.DB.prepare('DELETE FROM risultati WHERE serata_id=?').bind(sid));
+      for (const [pid, r] of Object.entries(body.ris || {})) {
+        const b = Math.max(0, parseInt(r && r.b, 10) || 0), t = Math.max(0, parseInt(r && r.t, 10) || 0);
+        if (b >= 1 || t >= 1) st.push(env.DB.prepare('INSERT INTO risultati (serata_id,persona_id,b,t) VALUES (?,?,?,?)').bind(sid, txt(pid, 40), b, t));
+      }
+      await env.DB.batch(st); return json({ ok: true, id: sid });
+    }
+  }
+
+  if (seg[0] === 'utenti') {
+    if (m === 'POST') {
+      const email = txt(body.email, 200).toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err('Email non valida.');
+      const p = await env.DB.prepare('SELECT ruolo FROM persone WHERE id=?').bind(body.persona_id || '').first();
+      if (!p || p.ruolo !== 'staff') return err('Scegli un Capo staff.');
+      await env.DB.prepare('INSERT INTO utenti (email,ruolo,persona_id) VALUES (?1,\'staff\',?2) ON CONFLICT(email) DO UPDATE SET persona_id=?2').bind(email, body.persona_id).run();
+      return json({ ok: true });
+    }
+    if (m === 'DELETE' && seg[1]) { await env.DB.prepare('DELETE FROM utenti WHERE email=?').bind(decodeURIComponent(seg[1]).toLowerCase()).run(); return json({ ok: true }); }
+  }
+  return err('Richiesta non riconosciuta', 404);
+}
+
+export default {
+  async fetch(req, env) {
+    const url = new URL(req.url);
+    const email = await chiSei(req, env);
+    if (email && email.config) return msgPage('Configurazione incompleta', 'Mancano TEAM_DOMAIN e POLICY_AUD nelle variabili del Worker.');
+    if (!email) return msgPage('Accesso non valido', 'Apri il sito dal link e accedi con la tua email.');
+    const admins = (env.ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+    let me = null;
+    if (admins.includes(email)) me = { email, ruolo: 'admin', persona_id: null };
+    else {
+      const u = await env.DB.prepare('SELECT * FROM utenti WHERE email=?').bind(email).first();
+      if (u && u.persona_id) me = { email, ruolo: 'staff', persona_id: u.persona_id };
+    }
+    const isApi = url.pathname.startsWith('/api/');
+    if (!me) return isApi ? err('Non autorizzato', 403) : msgPage('Non sei abilitato', `L'email <b>${email.replace(/[<>&"]/g, '')}</b> non è tra quelle autorizzate. Chiedi all'amministratore di aggiungerti.`);
+    if (isApi) {
+      try { return await api(req, env, me, url.pathname.slice(5)); }
+      catch (e) { return err('Errore del server: ' + (e && e.message || e), 500); }
+    }
+    return page(HTML);
+  },
+};
