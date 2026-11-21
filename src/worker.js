@@ -87,33 +87,52 @@ function controllaAlbero(d, id, persone) {
 async function impostazioni(env) {
   const rows = (await env.DB.prepare('SELECT * FROM impostazioni').all()).results;
   const o = Object.fromEntries(rows.map(r => [r.chiave, r.valore]));
-  return { stagione_inizio: o.stagione_inizio || '2000-01-01', punti_persone: parseInt(o.punti_persone, 10) || 20, punti_euro: parseInt(o.punti_euro, 10) || 500 };
+  return { stagione_inizio: o.stagione_inizio || '2000-01-01', punti_persone: parseInt(o.punti_persone, 10) || 20, punti_euro: parseInt(o.punti_euro, 10) || 500, punti_segno: o.punti_segno != null ? parseInt(o.punti_segno, 10) || 0 : 10 };
 }
 // Punti interi sui totali della stagione: PR = personali; Capi PR e Capi staff = personali + tutto il gruppo.
 // La classifica mostra solo nome e punti (nessun numero di persone, incasso o superiore).
 async function classificaPunti(env, me, admin, filtro) {
   const imp = await impostazioni(env);
   const persone = await tutte(env);
-  let sql = 'SELECT r.persona_id, r.b, r.t, r.e FROM risultati r JOIN serate s ON s.id = r.serata_id WHERE s.data >= ?1';
-  if (filtro) sql += ' AND (s.loc = ?2 OR s.fmt = ?2)';
-  const st = env.DB.prepare(sql);
-  const ris = (await (filtro ? st.bind(imp.stagione_inizio, filtro) : st.bind(imp.stagione_inizio)).all()).results;
-  const pers = {};
-  for (const r of ris) { const o = pers[r.persona_id] ||= { b: 0, t: 0, e: 0 }; o.b += r.b; o.t += r.t; o.e += r.e || 0; }
+  const [serR, locR, risR] = await Promise.all([
+    env.DB.prepare('SELECT id, data, loc, fmt FROM serate ORDER BY data, id').all(),
+    env.DB.prepare('SELECT id, misura FROM locali').all(),
+    env.DB.prepare('SELECT serata_id, persona_id, b, t, e FROM risultati').all()]);
+  const incasso = new Set(locR.results.filter(l => l.misura === 'incasso').map(l => l.id));
+  const perSerata = {}; for (const r of risR.results) (perSerata[r.serata_id] ||= {})[r.persona_id] = r;
+  const val = (s, pid) => { const r = (perSerata[s.id] || {})[pid]; if (!r) return 0; return incasso.has(s.fmt) ? (r.e || 0) : r.b + r.t; };
+  const conta = s => s.data >= imp.stagione_inizio && (!filtro || s.loc === filtro || s.fmt === filtro);
+  // totali personali della stagione (e del filtro)
+  const pers = {}, segni = {};
+  for (const s of serR.results) if (conta(s)) for (const r of Object.values(perSerata[s.id] || {})) {
+    const o = pers[r.persona_id] ||= { b: 0, t: 0, e: 0 }; o.b += r.b; o.t += r.t; o.e += r.e || 0;
+  }
+  // "a segno": più del miglior risultato personale nelle 2 serate precedenti dello stesso format
+  // (anche fuori stagione, per il confronto); si contano solo le serate della stagione e del filtro
+  const gruppi = {}; for (const s of serR.results) (gruppi[s.fmt || ''] ||= []).push(s);
+  for (const l of Object.values(gruppi)) l.forEach((s, i) => {
+    if (!conta(s)) return;
+    const prev = l.slice(Math.max(0, i - 2), i);
+    for (const pid of Object.keys(perSerata[s.id] || {})) {
+      const v = val(s, pid), best = Math.max(0, ...prev.map(p => val(p, pid)));
+      if (v > best) segni[pid] = (segni[pid] || 0) + 1;
+    }
+  });
   const figli = {}; for (const p of persone) if (p.parent) (figli[p.parent] ||= []).push(p.id);
   const memo = {};
   const team = (id, vis = new Set()) => {
-    if (memo[id]) return memo[id]; if (vis.has(id)) return { b: 0, t: 0, e: 0 }; vis.add(id);
-    const a = { ...(pers[id] || { b: 0, t: 0, e: 0 }) };
-    for (const c of figli[id] || []) { const v = team(c, vis); a.b += v.b; a.t += v.t; a.e += v.e; }
+    if (memo[id]) return memo[id]; if (vis.has(id)) return { b: 0, t: 0, e: 0, s: 0 }; vis.add(id);
+    const a = { ...(pers[id] || { b: 0, t: 0, e: 0 }), s: segni[id] || 0 };
+    for (const c of figli[id] || []) { const v = team(c, vis); a.b += v.b; a.t += v.t; a.e += v.e; a.s += v.s; }
     return memo[id] = a;
   };
   const mio = admin ? null : ramo(persone, me.persona_id);
   const righe = [];
   for (const p of persone) {
-    const v = p.ruolo === 'pr' ? (pers[p.id] || { b: 0, t: 0, e: 0 }) : team(p.id);
+    // PR: risultati personali; Capi PR e Capi staff: personali + tutto il gruppo (bonus compresi)
+    const v = p.ruolo === 'pr' ? { ...(pers[p.id] || { b: 0, t: 0, e: 0 }), s: segni[p.id] || 0 } : team(p.id);
     const persoTot = v.b + v.t; if (!persoTot && !v.e) continue;
-    const punti = Math.floor(persoTot / imp.punti_persone) + Math.floor(v.e / 100 / imp.punti_euro);
+    const punti = Math.floor(persoTot / imp.punti_persone) + Math.floor(v.e / 100 / imp.punti_euro) + v.s * imp.punti_segno;
     const vede = admin || mio.has(p.id);
     const r = { nome: [p.nome, p.cognome].filter(Boolean).join(' ') || 'Senza nome', ruolo: p.ruolo, punti, mio: !admin && vede };
     if (vede) r.id = p.id; // la classifica mostra solo nome e punti
@@ -186,11 +205,12 @@ async function api(req, env, me, path) {
   if (!admin) return err('Solo l\'amministratore può farlo', 403);
 
   if (seg[0] === 'impostazioni' && m === 'PUT') {
-    const ini = txt(body.stagione_inizio, 10), pp = parseInt(body.punti_persone, 10), pe = parseInt(body.punti_euro, 10);
+    const ini = txt(body.stagione_inizio, 10), pp = parseInt(body.punti_persone, 10), pe = parseInt(body.punti_euro, 10), ps = parseInt(body.punti_segno, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ini)) return err('Data di inizio stagione non valida.');
     if (!(pp >= 1 && pp <= 10000) || !(pe >= 1 && pe <= 1000000)) return err('Le soglie dei punti devono essere numeri maggiori di zero.');
+    if (!(ps >= 0 && ps <= 1000)) return err('Il bonus per chi va a segno deve essere un numero da 0 in su.');
     const q = 'INSERT INTO impostazioni (chiave,valore) VALUES (?,?) ON CONFLICT(chiave) DO UPDATE SET valore=excluded.valore';
-    await env.DB.batch([env.DB.prepare(q).bind('stagione_inizio', ini), env.DB.prepare(q).bind('punti_persone', String(pp)), env.DB.prepare(q).bind('punti_euro', String(pe))]);
+    await env.DB.batch([env.DB.prepare(q).bind('stagione_inizio', ini), env.DB.prepare(q).bind('punti_persone', String(pp)), env.DB.prepare(q).bind('punti_euro', String(pe)), env.DB.prepare(q).bind('punti_segno', String(ps))]);
     return json({ ok: true });
   }
 

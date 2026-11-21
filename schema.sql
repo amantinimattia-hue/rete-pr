@@ -36,6 +36,6 @@ CREATE TABLE IF NOT EXISTS utenti (
   persona_id TEXT
 );
 CREATE TABLE IF NOT EXISTS impostazioni (
-  chiave TEXT PRIMARY KEY, -- stagione_inizio, punti_persone, punti_euro
+  chiave TEXT PRIMARY KEY, -- stagione_inizio, punti_persone, punti_euro, punti_segno
   valore TEXT
 );
