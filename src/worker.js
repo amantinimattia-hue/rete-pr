@@ -376,13 +376,13 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     // Le pagine aperte dal link personale non passano da Cloudflare Access: vale il token.
-    const sl = url.pathname.match(/^\/s\/([a-z0-9]{10,60})\/?$/);
-    if (sl) return page(HTML_STAFF);
-    const sa = url.pathname.match(/^\/api\/s\/([a-z0-9]{10,60})(\/.*)?$/);
+    // Tutto sotto /s/: così su Access basta una sola eccezione, sul percorso /s.
+    const sa = url.pathname.match(/^\/s\/([a-z0-9]{10,60})\/api(\/.*)?$/);
     if (sa) {
       try { return await apiLink(req, env, sa[1], sa[2] || ''); }
       catch (e) { return err('Errore del server: ' + (e && e.message || e), 500); }
     }
+    if (/^\/s\/[a-z0-9]{10,60}\/?$/.test(url.pathname)) return page(HTML_STAFF);
     const email = await chiSei(req, env);
     if (email && email.config) return msgPage('Configurazione incompleta', 'Mancano TEAM_DOMAIN e POLICY_AUD nelle variabili del Worker.');
     if (!email) return msgPage('Accesso non valido', 'Apri il sito dal link e accedi con la tua email.');

@@ -86,7 +86,7 @@ const RUOLI={staff:'Capo staff',capo:'Capo PR',pr:'PR'};
 const nome=p=>[p.nome,p.cognome].filter(Boolean).join(' ')||'Senza nome';
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('on'),2200)};
 async function api(met,path,body){
-  const r=await fetch('/api/s/'+TOK+path,{method:met,headers:{'content-type':'application/json','x-ver':VER},body:body?JSON.stringify(body):undefined});
+  const r=await fetch('/s/'+TOK+'/api'+path,{method:met,headers:{'content-type':'application/json','x-ver':VER},body:body?JSON.stringify(body):undefined});
   const d=await r.json().catch(()=>({error:'Risposta non valida'}));
   if(d&&d.reload){location.reload();throw new Error('Pagina da ricaricare')}
   if(!r.ok)throw new Error(d.error||'Errore');return d}
