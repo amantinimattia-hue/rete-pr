@@ -3,6 +3,7 @@
 // e si decide chi è admin (ADMIN_EMAILS) e quale capo staff corrisponde a ogni email (tabella utenti).
 
 const HTML = "__HTML__";
+const HTML_STAFF = "__HTML_STAFF__"; // pagina aperta dal link personale del capo staff
 const VER = "__VER__";
 const ICONE = "__ICONE__"; // icone dell'app, inline: così restano leggibili anche dietro Cloudflare Access // versione della pagina: se il browser ha una pagina vecchia, la ricarica prima di salvare
 
@@ -56,6 +57,8 @@ const euroCent = v => { const n = parseFloat(String(v ?? '').replace(/\./g, '').
 const misura = v => v === 'incasso' ? 'incasso' : 'persone';
 const etaMin = v => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 6 && n <= 99 ? n : null; };
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 20);
+// Token del link personale: lungo e casuale, perché il link vale da solo come chiave d'accesso.
+const nuovoToken = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), b => 'abcdefghijkmnopqrstuvwxyz23456789'[b % 33]).join('');
 const txt = (v, n = 200) => (v == null ? '' : String(v)).trim().slice(0, n);
 async function tutte(env) { return (await env.DB.prepare('SELECT * FROM persone').all()).results; }
 function ramo(persone, rootId) {
@@ -64,18 +67,24 @@ function ramo(persone, rootId) {
   return ids;
 }
 function pulisci(b) {
-  const anno = b.anno === '' || b.anno == null ? null : parseInt(b.anno, 10);
+  // Si chiede la data di nascita; l'anno resta in archivio perché i grafici ragionano per anno.
+  const nascita = /^\d{4}-\d{2}-\d{2}$/.test(txt(b.nascita, 10)) ? txt(b.nascita, 10) : null;
+  const anno0 = b.anno === '' || b.anno == null ? null : parseInt(b.anno, 10);
+  const anno = nascita ? parseInt(nascita.slice(0, 4), 10) : (Number.isFinite(anno0) ? anno0 : null);
   return {
-    nome: txt(b.nome, 80), cognome: txt(b.cognome, 80), anno: Number.isFinite(anno) ? anno : null,
+    nome: txt(b.nome, 80), cognome: txt(b.cognome, 80), anno, nascita,
     scuola: txt(b.scuola, 120), zona: txt(b.zona, 120), tel: txt(b.tel, 40), note: txt(b.note, 1000),
     ruolo: RUOLI.includes(b.ruolo) ? b.ruolo : 'pr', parent: b.parent ? txt(b.parent, 40) : null,
     no_stat: b.no_stat ? 1 : 0, // fuori dai grafici di anno, scuola e zona
   };
 }
+// Campi che i capi staff devono completare per ogni persona
+const MANCA = [['nascita', 'data di nascita'], ['scuola', 'scuola'], ['zona', 'zona'], ['tel', 'telefono']];
 // Regole dell'albero, uguali per tutti
 function controllaAlbero(d, id, persone) {
   if (!d.nome && !d.cognome) return 'Serve almeno il nome o il cognome.';
   if (d.anno != null && (d.anno < 1950 || d.anno > 2025)) return 'Anno di nascita non valido.';
+  if (d.nascita && (d.nascita > new Date().toISOString().slice(0, 10) || d.nascita < '1950-01-01')) return 'Data di nascita non valida.';
   if (d.parent) {
     if (d.parent === id) return 'Una persona non può essere superiore di sé stessa.';
     const par = persone.find(p => p.id === d.parent); if (!par) return 'Superiore non trovato.';
@@ -90,6 +99,13 @@ function controllaAlbero(d, id, persone) {
     if (d.ruolo === 'capo' && figli.some(f => f.ruolo !== 'pr')) return 'Ha Capi staff o Capi PR sotto di sé: spostali prima.';
   }
   return null;
+}
+
+async function scrivi(env, d, id, nid, ora, chi) {
+  if (id) await env.DB.prepare('UPDATE persone SET nome=?,cognome=?,anno=?,nascita=?,scuola=?,zona=?,tel=?,note=?,ruolo=?,parent=?,no_stat=?,aggiornato=? WHERE id=?')
+    .bind(d.nome, d.cognome, d.anno, d.nascita, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, d.no_stat, ora, id).run();
+  else await env.DB.prepare('INSERT INTO persone (id,nome,cognome,anno,nascita,scuola,zona,tel,note,ruolo,parent,no_stat,creato_da,aggiornato) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(nid, d.nome, d.cognome, d.anno, d.nascita, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, d.no_stat, chi, ora).run();
 }
 
 /* ---------- classifica a punti ---------- */
@@ -171,7 +187,10 @@ async function api(req, env, me, path) {
     };
     const imp = await impostazioni(env);
     out.imp = admin ? imp : { stagione_inizio: imp.stagione_inizio };
-    if (admin) out.utenti = (await env.DB.prepare('SELECT * FROM utenti ORDER BY email').all()).results;
+    if (admin) {
+      out.utenti = (await env.DB.prepare('SELECT * FROM utenti ORDER BY email').all()).results;
+      out.link = (await env.DB.prepare('SELECT * FROM link').all()).results;
+    }
     return json(out);
   }
 
@@ -202,10 +221,7 @@ async function api(req, env, me, path) {
       }
       const e = controllaAlbero(d, id, persone); if (e) return err(e);
       const nid = id || uid(), ora = new Date().toISOString();
-      if (id) await env.DB.prepare('UPDATE persone SET nome=?,cognome=?,anno=?,scuola=?,zona=?,tel=?,note=?,ruolo=?,parent=?,no_stat=?,aggiornato=? WHERE id=?')
-        .bind(d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, d.no_stat, ora, id).run();
-      else await env.DB.prepare('INSERT INTO persone (id,nome,cognome,anno,scuola,zona,tel,note,ruolo,parent,no_stat,creato_da,aggiornato) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
-        .bind(nid, d.nome, d.cognome, d.anno, d.scuola, d.zona, d.tel, d.note, d.ruolo, d.parent, d.no_stat, me.email, ora).run();
+      await scrivi(env, d, id, nid, ora, me.email);
       return json({ ok: true, id: nid });
     }
   }
@@ -270,6 +286,18 @@ async function api(req, env, me, path) {
     }
   }
 
+  if (seg[0] === 'link') {
+    if (m === 'POST') { // crea o rigenera il link di un capo staff
+      const p = await env.DB.prepare('SELECT ruolo FROM persone WHERE id=?').bind(body.persona_id || '').first();
+      if (!p || p.ruolo !== 'staff') return err('I link personali sono per i Capi staff.');
+      const token = nuovoToken();
+      await env.DB.prepare('INSERT INTO link (token,persona_id,creato) VALUES (?1,?2,?3) ON CONFLICT(persona_id) DO UPDATE SET token=?1, creato=?3, uso=NULL, n=0')
+        .bind(token, body.persona_id, new Date().toISOString()).run();
+      return json({ ok: true, token });
+    }
+    if (m === 'DELETE' && seg[1]) { await env.DB.prepare('DELETE FROM link WHERE persona_id=?').bind(seg[1]).run(); return json({ ok: true }); }
+  }
+
   if (seg[0] === 'utenti') {
     if (m === 'POST') {
       const email = txt(body.email, 200).toLowerCase();
@@ -284,9 +312,77 @@ async function api(req, env, me, path) {
   return err('Richiesta non riconosciuta', 404);
 }
 
+/* ---------- link personale del capo staff (senza login) ---------- */
+// Il token vale da solo: chi ha il link entra, e vede e modifica soltanto il proprio ramo.
+async function apiLink(req, env, token, resto) {
+  const riga = await env.DB.prepare('SELECT * FROM link WHERE token=?').bind(token).first();
+  if (!riga) return err('Link non valido o revocato', 403);
+  const m = req.method, seg = resto.split('/').filter(Boolean);
+  if (m !== 'GET' && !(req.headers.get('content-type') || '').includes('application/json')) return err('Richiesta non valida', 415);
+  if (m !== 'GET' && req.headers.get('x-ver') !== VER) return json({ error: 'La pagina è stata aggiornata: la ricarico, poi riprova.', reload: true }, 409);
+  const body = m === 'POST' || m === 'PUT' ? await req.json().catch(() => ({})) : {};
+
+  const persone = await tutte(env);
+  const capo = persone.find(p => p.id === riga.persona_id);
+  if (!capo) return err('Il capo staff di questo link non esiste più', 403);
+  const vis = ramo(persone, capo.id);
+  const miei = persone.filter(p => vis.has(p.id));
+
+  if (m === 'GET' && !seg.length) {
+    env.DB.prepare('UPDATE link SET uso=?, n=n+1 WHERE token=?').bind(new Date().toISOString(), token).run().catch(() => {});
+    return json({ ver: VER, capo: { id: capo.id, nome: capo.nome, cognome: capo.cognome }, persone: miei, manca: MANCA });
+  }
+
+  if (seg[0] === 'persone') {
+    const id = seg[1] || null;
+    const esistente = id ? persone.find(p => p.id === id) : null;
+    if (id && (!esistente || !vis.has(id))) return err('Non fa parte della tua squadra', 403);
+
+    if (m === 'DELETE' && id) {
+      if (id === capo.id) return err('Non puoi eliminare te stesso.');
+      if (esistente.ruolo !== 'pr') return err('Puoi eliminare solo i PR. Per gli altri chiedi a Meth.');
+      if (persone.some(p => p.parent === id)) return err('Ha persone collegate: spostale prima.');
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM persone WHERE id = ?').bind(id),
+        env.DB.prepare('DELETE FROM utenti WHERE persona_id = ?').bind(id),
+        env.DB.prepare('DELETE FROM link WHERE persona_id = ?').bind(id)]);
+      return json({ ok: true });
+    }
+
+    if (m === 'POST' || m === 'PUT') {
+      if (m === 'PUT' && !id) return err('Manca la persona');
+      const d = pulisci(body);
+      // Dal link si creano solo PR e non si cambia il ruolo di nessuno: per quello serve l'amministratore.
+      if (esistente) {
+        if (esistente.id === capo.id) { d.ruolo = esistente.ruolo; d.parent = esistente.parent; }
+        else {
+          d.ruolo = esistente.ruolo;
+          if (!d.parent || !vis.has(d.parent) || d.parent === esistente.id) d.parent = esistente.parent;
+        }
+      } else {
+        d.ruolo = 'pr';
+        if (!d.parent || !vis.has(d.parent)) d.parent = capo.id;
+      }
+      const e = controllaAlbero(d, id, persone); if (e) return err(e);
+      const nid = id || uid();
+      await scrivi(env, d, id, nid, new Date().toISOString(), 'link:' + capo.id);
+      return json({ ok: true, id: nid });
+    }
+  }
+  return err('Richiesta non riconosciuta', 404);
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    // Le pagine aperte dal link personale non passano da Cloudflare Access: vale il token.
+    const sl = url.pathname.match(/^\/s\/([a-z0-9]{10,60})\/?$/);
+    if (sl) return page(HTML_STAFF);
+    const sa = url.pathname.match(/^\/api\/s\/([a-z0-9]{10,60})(\/.*)?$/);
+    if (sa) {
+      try { return await apiLink(req, env, sa[1], sa[2] || ''); }
+      catch (e) { return err('Errore del server: ' + (e && e.message || e), 500); }
+    }
     const email = await chiSei(req, env);
     if (email && email.config) return msgPage('Configurazione incompleta', 'Mancano TEAM_DOMAIN e POLICY_AUD nelle variabili del Worker.');
     if (!email) return msgPage('Accesso non valido', 'Apri il sito dal link e accedi con la tua email.');

@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS persone (
   id TEXT PRIMARY KEY,
-  nome TEXT, cognome TEXT, anno INTEGER, scuola TEXT, zona TEXT, tel TEXT, note TEXT,
+  nome TEXT, cognome TEXT, anno INTEGER, nascita TEXT, scuola TEXT, zona TEXT, tel TEXT, note TEXT,
   ruolo TEXT NOT NULL CHECK (ruolo IN ('staff','capo','pr')),
   parent TEXT,
   no_stat INTEGER NOT NULL DEFAULT 0, -- fuori dai grafici di anno, scuola e zona
@@ -39,4 +39,13 @@ CREATE TABLE IF NOT EXISTS utenti (
 CREATE TABLE IF NOT EXISTS impostazioni (
   chiave TEXT PRIMARY KEY, -- stagione_inizio, punti_persone, punti_euro, punti_segno
   valore TEXT
+);
+
+-- Link personali dei capi staff: aprono la pagina di compilazione senza login.
+CREATE TABLE IF NOT EXISTS link (
+  token TEXT PRIMARY KEY,
+  persona_id TEXT NOT NULL UNIQUE,
+  creato TEXT,
+  uso TEXT,            -- ultimo accesso
+  n INTEGER NOT NULL DEFAULT 0
 );

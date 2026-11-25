@@ -148,7 +148,7 @@ details>summary{cursor:pointer}
 <div id="toast"></div>
 <script>
 {
-const S={me:null,utenti:[],so:{k:'ruolo',d:1},db:null,pr:[],loc:[],ser:[],got:{},q:'',fR:'',fS:'',fZ:'',rep:'all',repPr:'',draft:null,rq:'',charts:{}};
+const S={me:null,utenti:[],link:[],so:{k:'ruolo',d:1},db:null,pr:[],loc:[],ser:[],got:{},q:'',fR:'',fS:'',fZ:'',rep:'all',repPr:'',draft:null,rq:'',charts:{}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const RUOLI={staff:'Capo staff',capo:'Capo PR',pr:'PR'};
@@ -401,7 +401,19 @@ function vAccessi(){const st=S.pr.filter(p=>p.ruolo==='staff').sort(sortNome);
   <div class="card" style="margin-bottom:12px"><h3>Aggiungi un capo staff</h3><div class="row"><input id="aE" type="email" placeholder="email@esempio.it" style="flex:2 1 220px;width:auto">
   <select id="aP" style="flex:1 1 180px;width:auto">${st.length?st.map(p=>`<option value="${p.id}">${esc(nome(p))}</option>`).join(''):'<option value="">Crea prima un Capo staff in Archivio</option>'}</select><button class="pri" id="aA">Abilita</button></div><p class="msg" id="aM"></p></div>
   <div class="tbl"><table class="stack"><thead><tr><th>Email</th><th>Capo staff</th><th></th></tr></thead><tbody>
-  ${S.utenti.length?S.utenti.map(u=>`<tr><td>${esc(u.email)}</td><td>${u.persona_id&&byId(u.persona_id)?`<button class="link" data-pg="${u.persona_id}">${esc(nome(byId(u.persona_id)))}</button>`:'<span class="note">Persona eliminata</span>'}</td><td class="n"><button class="danger" data-du="${esc(u.email)}">Togli accesso</button></td></tr>`).join(''):'<tr><td colspan="3"><p class="empty">Nessun capo staff abilitato.</p></td></tr>'}</tbody></table></div>`}
+  ${S.utenti.length?S.utenti.map(u=>`<tr><td>${esc(u.email)}</td><td>${u.persona_id&&byId(u.persona_id)?`<button class="link" data-pg="${u.persona_id}">${esc(nome(byId(u.persona_id)))}</button>`:'<span class="note">Persona eliminata</span>'}</td><td class="n"><button class="danger" data-du="${esc(u.email)}">Togli accesso</button></td></tr>`).join(''):'<tr><td colspan="3"><p class="empty">Nessun capo staff abilitato.</p></td></tr>'}</tbody></table></div>
+  ${vLink(st)}`}
+/* Link personali: i capi staff aprono la pagina della squadra senza password. */
+function vLink(st){const byP=Object.fromEntries((S.link||[]).map(l=>[l.persona_id,l]));
+  const url=l=>location.origin+'/s/'+l.token;
+  const quando=t=>t?new Date(t).toLocaleDateString('it-IT',{day:'numeric',month:'short'}):'mai aperto';
+  return `<h3 style="margin:22px 0 4px;font:800 18px/1.2 Unbounded,'DM Sans',sans-serif">Link personali della squadra</h3>
+  <p class="sub">Da mandare al capo staff su WhatsApp. Si apre senza password: chi ha il link entra, quindi vale come una chiave. Da lì può aggiungere PR, completarne i dati ed eliminarli, ma non può cambiare i ruoli. Se un link gira dove non deve, rigeneralo: il vecchio smette di funzionare.</p>
+  <div class="tbl"><table class="stack"><thead><tr><th>Capo staff</th><th>Link</th><th>Usato</th><th></th></tr></thead><tbody>
+  ${st.length?st.map(p=>{const l=byP[p.id];return `<tr><td><button class="link" data-pg="${p.id}">${esc(nome(p))}</button><span class="note i">${figli(p.id).length} collegati</span></td>
+  <td>${l?`<input readonly value="${esc(url(l))}" id="L${p.id}" style="font-size:12.5px;min-height:34px" onclick="this.select()">`:'<span class="note">Nessun link</span>'}</td>
+  <td class="n">${l?`${quando(l.uso)}${l.n?` · ${l.n} volte`:''}`:''}</td>
+  <td class="n" style="white-space:nowrap">${l?`<button data-cp="${p.id}">Copia</button> <button data-rg="${p.id}">Rigenera</button> <button class="danger" data-rv="${p.id}">Revoca</button>`:`<button class="pri" data-rg="${p.id}">Crea il link</button>`}</td></tr>`}).join(''):'<tr><td colspan="4"><p class="empty">Nessun capo staff in archivio.</p></td></tr>'}</tbody></table></div>`}
 
 /* ---------- render ---------- */
 function render(){const v=view();for(const a of document.querySelectorAll('#nav a'))a.classList.toggle('on',a.dataset.v===v);
@@ -424,7 +436,8 @@ function openPR(id){const p=id?byId(id):{ruolo:'pr'};if(!p)return;S.draft={k:'pr
   <div class="form">${f('nome','Nome')}${f('cognome','Cognome')}
   <label>Ruolo<select id="p-ruolo" ${self?'disabled':''}>${Object.entries(self?RUOLI:RO).map(([k,v])=>`<option value="${k}" ${k===p.ruolo?'selected':''}>${v}</option>`).join('')}</select></label>
   <label>Superiore<select id="p-parent"></select></label>
-  ${f('anno','Anno di nascita','number')}${f('tel','Telefono','tel')}${f('scuola','Scuola')}${f('zona','Zona')}
+  <label>Data di nascita<input id="p-nascita" type="date" value="${esc(p.nascita||'')}" max="${new Date().toISOString().slice(0,10)}">${!p.nascita&&p.anno?`<span class="note">In archivio c'è solo l'anno ${p.anno}</span>`:''}</label>
+  ${f('tel','Telefono','tel')}${f('scuola','Scuola')}${f('zona','Zona')}
   <label class="w">Note<textarea id="p-note">${esc(p.note||'')}</textarea></label>
   <label class="w" style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="p-nostat" ${p.no_stat?'checked':''} style="width:auto;min-height:0;margin:0"> Fuori dai grafici di anno, scuola e zona (per chi organizza, non per i PR)</label></div>${dl('scuola')}${dl('zona')}
   ${id?`<p class="note">Totale: ${BT(vend(id,S.ser))} in ${S.ser.filter(s=>(s.ris||{})[id]).length} serate</p>`:''}
@@ -438,9 +451,10 @@ function openPR(id){const p=id?byId(id):{ruolo:'pr'};if(!p)return;S.draft={k:'pr
   $('#pS').onclick=()=>salvaPR(id);if(id&&!self)$('#pD').onclick=e=>eliminaPR(id,e.target);
   $('#modal').classList.add('on');$('#p-nome').focus()}
 async function salvaPR(id){const g=k=>$('#p-'+k).value.trim(),m=$('#pM');
-  const d={nome:g('nome'),cognome:g('cognome'),ruolo:$('#p-ruolo').value,parent:$('#p-parent').value||null,no_stat:$('#p-nostat').checked?1:0,anno:g('anno')?parseInt(g('anno'),10):null,tel:g('tel'),scuola:g('scuola'),zona:g('zona'),note:$('#p-note').value.trim()};
+  const pre=id?byId(id):null;
+  const d={nome:g('nome'),cognome:g('cognome'),ruolo:$('#p-ruolo').value,parent:$('#p-parent').value||null,no_stat:$('#p-nostat').checked?1:0,nascita:g('nascita'),anno:pre?pre.anno:null,tel:g('tel'),scuola:g('scuola'),zona:g('zona'),note:$('#p-note').value.trim()};
   if(!d.nome&&!d.cognome){m.textContent='Serve almeno il nome o il cognome.';return}
-  if(d.anno!=null&&(isNaN(d.anno)||d.anno<1950||d.anno>2025)){m.textContent='Anno di nascita non valido.';return}
+  if(d.nascita&&d.nascita>new Date().toISOString().slice(0,10)){m.textContent='La data di nascita non può essere nel futuro.';return}
   if(id){const f=figli(id);if(d.ruolo==='pr'&&f.length){m.textContent=`Ha ${f.length} persone collegate: spostale prima di farlo diventare PR.`;return}
     if(d.ruolo==='capo'&&f.some(x=>x.ruolo!=='pr')){m.textContent='Ha Capi staff o Capi PR sotto di sé: spostali prima di farlo diventare Capo PR.';return}}
   if(!S.db){m.textContent='Archivio non raggiungibile: impossibile salvare.';return}
@@ -530,6 +544,12 @@ document.addEventListener('click',async e=>{const th=e.target.closest('th[data-s
   else if(t.id==='aA'){const em=$('#aE').value.trim(),pid=$('#aP').value;if(!em||!pid){$('#aM').textContent='Scrivi l\'email e scegli il capo staff.';return}
     t.disabled=true;try{await api('POST','/api/utenti',{email:em,persona_id:pid});toast('Accesso abilitato');await load()}catch(er){$('#aM').textContent=er.message;t.disabled=false}}
   else if(d.du){if(!t.dataset.c){t.dataset.c=1;t.textContent='Conferma';return}try{await api('DELETE','/api/utenti/'+encodeURIComponent(d.du));toast('Accesso tolto');await load()}catch(er){toast(er.message)}}
+  else if(d.cp){const i=$('#L'+d.cp);if(i){i.select();try{await navigator.clipboard.writeText(i.value)}catch(_){document.execCommand('copy')}toast('Link copiato')}}
+  else if(d.rg){const nuovo=!(S.link||[]).some(l=>l.persona_id===d.rg);
+    if(!nuovo&&!t.dataset.c){t.dataset.c=1;t.textContent='Conferma';return}
+    t.disabled=true;try{await api('POST','/api/link',{persona_id:d.rg});toast(nuovo?'Link creato':'Link rigenerato: il vecchio non funziona più');await load()}catch(er){toast(er.message);t.disabled=false}}
+  else if(d.rv){if(!t.dataset.c){t.dataset.c=1;t.textContent='Conferma';return}
+    t.disabled=true;try{await api('DELETE','/api/link/'+d.rv);toast('Link revocato');await load()}catch(er){toast(er.message);t.disabled=false}}
   else if(d.el)openLoc(d.el);
   else if(t.id==='lA'){const n=$('#lN').value.trim(),ty=$('#lT').value,eta=$('#lE').value;if(!n){$('#lM').textContent='Scrivi il nome.';return}
     if(ty==='format'&&!eta){$('#lM').textContent='Indica l\'età minima del format.';return}
@@ -552,7 +572,7 @@ async function api(m,u,b){const r=await fetch(u,{method:m,headers:{'content-type
   if(r.status===401||r.redirected&&!r.url.includes('/api/')){location.reload();throw {message:'Sessione scaduta'}}
   if(j.reload){toast(j.error);setTimeout(()=>location.reload(),1500)}
   if(!r.ok)throw {message:j.error||('Errore '+r.status)};return j}
-async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!==VER&&!S.me){location.reload();return}S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.imp=d.imp||S.imp;S.puntiD=null;S.got={pr:1,loc:1,ser:1};S.segno=calcSegno();banner(d.ver&&d.ver!==VER?'È disponibile una versione nuova del sito: ricarica la pagina.':'');
+async function load(){try{const d=await api('GET','/api/data');if(d.ver&&d.ver!==VER&&!S.me){location.reload();return}S.me=d.me;S.pr=d.persone;S.loc=d.locali;S.ser=d.serate;S.utenti=d.utenti||[];S.link=d.link||[];S.imp=d.imp||S.imp;S.puntiD=null;S.got={pr:1,loc:1,ser:1};S.segno=calcSegno();banner(d.ver&&d.ver!==VER?'È disponibile una versione nuova del sito: ricarica la pagina.':'');
   render();if(S.draft&&S.draft.k==='ser')listaRis()}catch(e){banner('Impossibile caricare i dati: '+(e.message||e));S.got={pr:1,loc:1,ser:1};render()}}
 S.db={collection:c=>({doc:id=>({set:async d=>{await api(id?'PUT':'POST',`/api/${MAP[c]}${id?'/'+id:''}`,d);await load()},
   delete:async()=>{await api('DELETE',`/api/${MAP[c]}/${id}`);await load()}})})};

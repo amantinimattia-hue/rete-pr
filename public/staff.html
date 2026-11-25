@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>La tua squadra · Happy.PR</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#141414">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Unbounded:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+/* Pagina che i capi staff aprono dal loro link: una cosa sola da fare, completare i dati della squadra. */
+:root{color-scheme:light dark;
+--bg:light-dark(#FFF5E6,#141414);--panel:light-dark(#F9EAD3,#1F1D1B);--line:light-dark(#EBD9BF,#34302C);
+--ink:light-dark(#141414,#FFF5E6);--mute:light-dark(#6E6760,#ADA59C);
+--acc:#FF5A1F;--acct:light-dark(#C23A0B,#FF7A45);--ok:light-dark(#1f7a4d,#5fd39a);
+--warn:light-dark(#FFF0D6,#3A2B12);--warnl:light-dark(#FFC300,#FFC300)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.45 "DM Sans",system-ui,sans-serif;overflow-x:clip}
+header{background:#141414;color:#FFF5E6;padding:14px max(4vw,14px)}
+.wrap{max-width:780px;margin:0 auto}
+header h1{margin:0;font:900 21px/1 Unbounded,"DM Sans",sans-serif;text-transform:uppercase}
+.dot{display:inline-block;width:.35em;height:.35em;border-radius:50%;background:#FF5A1F;margin:0 .09em}
+header p{margin:5px 0 0;font-size:13px;color:#C9C0B5}
+main{padding:14px max(4vw,14px) 90px}
+h2{font:800 19px/1.2 Unbounded,"DM Sans",sans-serif;margin:22px 0 10px}
+button{font:inherit;font-weight:700;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:44px;padding:0 14px;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button.danger{background:none;border-color:var(--acct);color:var(--acct)}
+button.link{background:none;border:0;padding:0;min-height:0;color:var(--acct);text-decoration:underline;font-weight:700;text-align:left}
+/* banner dei dati mancanti */
+.banner{border:2px solid var(--warnl);background:var(--warn);border-radius:16px;padding:13px 15px}
+.banner.ok{border-color:var(--ok);background:var(--panel)}
+.banner h3{margin:0 0 3px;font:800 17px/1.25 Unbounded,"DM Sans",sans-serif}
+.banner p{margin:0;font-size:13.5px;color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:5px 11px;font-size:13.5px;font-weight:500}
+.chip b{font:800 15px Unbounded,"DM Sans",sans-serif;color:var(--acct)}
+.chip.done b{color:var(--ok)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:11px}
+.bar i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .4s}
+/* elenco delle persone */
+.pers{border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:9px;overflow:hidden}
+.pers.manca{border-color:var(--warnl);border-width:2px}
+.ph{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer}
+.ph:hover{background:color-mix(in srgb,var(--acc) 7%,transparent)}
+.pn{flex:1}
+.pn b{display:block;font-size:16px}
+.pn span{font-size:13px;color:var(--mute)}
+.tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:99px;padding:3px 8px;background:var(--line);color:var(--mute)}
+.tag.staff{background:#141414;color:#FFF5E6}.tag.capo{background:var(--acc);color:#fff}
+.miss{display:inline-block;background:var(--warnl);color:#141414;font-size:11.5px;font-weight:700;border-radius:99px;padding:2px 8px;margin:4px 4px 0 0}
+.okdot{color:var(--ok);font-weight:700;font-size:13px}
+.chev{color:var(--mute);font-size:19px;line-height:1}
+.form{display:none;padding:2px 13px 14px;border-top:1px solid var(--line);gap:9px;grid-template-columns:1fr 1fr}
+.pers.open .form{display:grid}
+label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700;color:var(--mute)}
+label.w{grid-column:1/-1}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:11px;min-height:44px;padding:0 11px;width:100%}
+input.vuoto{border-color:var(--warnl);border-width:2px;background:var(--warn)}
+input:focus,select:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.azioni{grid-column:1/-1;display:flex;gap:9px;align-items:center;margin-top:3px}
+.sp{flex:1}
+.msg{grid-column:1/-1;margin:0;font-size:13.5px;color:var(--acct);font-weight:500;min-height:1px}
+.note{font-size:13px;color:var(--mute)}
+.empty{text-align:center;color:var(--mute);padding:26px 10px}
+#toast{position:fixed;left:50%;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(120%);background:#141414;color:#FFF5E6;padding:11px 20px;border-radius:99px;font-weight:700;transition:transform .25s;z-index:9}
+#toast.on{transform:translateX(-50%)}
+.addbar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:11px max(4vw,14px) calc(11px + env(safe-area-inset-bottom))}
+.addbar button{width:100%;max-width:780px;margin:0 auto;display:block}
+@media(max-width:520px){.form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>HAPPY<span class="dot"></span>PR</h1><p id="hp">Carico la tua squadra…</p></div></header>
+<main class="wrap" id="main"><p class="empty">Un attimo…</p></main>
+<div class="addbar" id="bar" hidden><button class="pri" id="add">+ Aggiungi un PR</button></div>
+<div id="toast"></div>
+<script>
+const VER='__VER__',TOK=location.pathname.split('/').filter(Boolean)[1]||'';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const S={persone:[],manca:[],capo:null,aperto:null,nuovo:false};
+const RUOLI={staff:'Capo staff',capo:'Capo PR',pr:'PR'};
+const nome=p=>[p.nome,p.cognome].filter(Boolean).join(' ')||'Senza nome';
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('on'),2200)};
+async function api(met,path,body){
+  const r=await fetch('/api/s/'+TOK+path,{method:met,headers:{'content-type':'application/json','x-ver':VER},body:body?JSON.stringify(body):undefined});
+  const d=await r.json().catch(()=>({error:'Risposta non valida'}));
+  if(d&&d.reload){location.reload();throw new Error('Pagina da ricaricare')}
+  if(!r.ok)throw new Error(d.error||'Errore');return d}
+const vuoti=p=>S.manca.filter(([k])=>!String(p[k]??'').trim()).map(([,lab])=>lab);
+const sortP=(a,b)=>({staff:0,capo:1,pr:2})[a.ruolo]-({staff:0,capo:1,pr:2})[b.ruolo]||nome(a).localeCompare(nome(b),'it');
+
+function banner(){
+  const tot=S.persone.length,conti=S.manca.map(([k,lab])=>[lab,S.persone.filter(p=>!String(p[k]??'').trim()).length]);
+  const buchi=conti.reduce((a,[,n])=>a+n,0),caselle=tot*S.manca.length;
+  const pieni=caselle-buchi,pc=caselle?Math.round(pieni/caselle*100):100;
+  const chips=conti.map(([lab,n])=>`<span class="chip ${n?'':'done'}"><b>${n||'✓'}</b> ${n===1?'manca la '+lab:n?'senza '+lab:lab}</span>`).join('');
+  if(!buchi)return `<div class="banner ok"><h3>Squadra completa ✓</h3><p>Tutti i dati dei tuoi ${tot} ragazzi sono a posto. Grazie.</p><div class="chips">${chips}</div></div>`;
+  return `<div class="banner"><h3>Mancano ${buchi} dati</h3>
+  <p>Ogni dato che inserisci serve a far girare meglio le serate. Tocca un nome e completalo: ci vogliono dieci secondi.</p>
+  <div class="chips">${chips}</div><div class="bar"><i style="width:${pc}%"></i></div>
+  <p style="margin-top:7px">${pieni} su ${caselle} caselle compilate · ${pc}%</p></div>`}
+
+function card(p){
+  const m=vuoti(p),ap=S.aperto===p.id,sotto=p.parent?S.persone.find(x=>x.id===p.parent):null;
+  const campo=(k,lab,tipo)=>{const v=p[k]??'',manca=!String(v).trim()&&S.manca.some(([kk])=>kk===k);
+    return `<label>${lab}${manca?' <span style="color:var(--acct)">· manca</span>':''}<input id="f-${k}" type="${tipo}" value="${esc(v)}" class="${manca?'vuoto':''}" ${tipo==='date'?'max="'+new Date().toISOString().slice(0,10)+'"':''} ${k==='tel'?'inputmode="tel"':''}></label>`};
+  const capi=S.persone.filter(x=>x.ruolo!=='pr'&&x.id!==p.id).sort(sortP);
+  return `<div class="pers ${m.length?'manca':''} ${ap?'open':''}" data-id="${p.id}">
+  <div class="ph" data-open="${p.id}"><div class="pn"><b>${esc(nome(p))}</b>
+    <span>${RUOLI[p.ruolo]}${sotto?' · sotto '+esc(nome(sotto)):''}</span>
+    ${m.length?m.map(x=>`<span class="miss">manca ${esc(x)}</span>`).join(''):'<span class="okdot">✓ dati completi</span>'}
+  </div><span class="chev">${ap?'▾':'▸'}</span></div>
+  ${ap?`<div class="form">
+    ${campo('nome','Nome','text')}${campo('cognome','Cognome','text')}
+    ${campo('nascita','Data di nascita','date')}${campo('tel','Telefono','tel')}
+    ${campo('scuola','Scuola','text')}${campo('zona','Zona','text')}
+    <label class="w">Sotto chi lavora<select id="f-parent" ${p.id===S.capo.id?'disabled':''}>${capi.map(c=>`<option value="${c.id}" ${c.id===p.parent?'selected':''}>${esc(nome(c))} · ${RUOLI[c.ruolo]}</option>`).join('')}</select></label>
+    <p class="msg" id="msg"></p>
+    <div class="azioni"><button class="pri" id="salva">Salva</button><span class="sp"></span>
+    ${p.ruolo==='pr'?`<button class="danger" id="elimina">Elimina</button>`:`<span class="note">Per cambiare ruolo chiedi a Meth</span>`}</div>
+  </div>`:''}</div>`}
+
+function nuovoCard(){
+  const capi=S.persone.filter(x=>x.ruolo!=='pr').sort(sortP);
+  const c=(k,lab,tipo)=>`<label>${lab}<input id="f-${k}" type="${tipo}" ${tipo==='date'?'max="'+new Date().toISOString().slice(0,10)+'"':''} ${k==='tel'?'inputmode="tel"':''}></label>`;
+  return `<div class="pers open manca" id="nuovo"><div class="ph"><div class="pn"><b>Nuovo PR</b><span>Bastano nome e cognome, ma se hai gli altri dati mettili subito</span></div></div>
+  <div class="form">${c('nome','Nome','text')}${c('cognome','Cognome','text')}
+  ${c('nascita','Data di nascita','date')}${c('tel','Telefono','tel')}
+  ${c('scuola','Scuola','text')}${c('zona','Zona','text')}
+  <label class="w">Sotto chi lavora<select id="f-parent">${capi.map(x=>`<option value="${x.id}" ${x.id===S.capo.id?'selected':''}>${esc(nome(x))} · ${RUOLI[x.ruolo]}</option>`).join('')}</select></label>
+  <p class="msg" id="msg"></p>
+  <div class="azioni"><button class="pri" id="salva">Aggiungi</button><span class="sp"></span><button id="annulla">Annulla</button></div></div></div>`}
+
+function render(){
+  $('#hp').innerHTML=S.capo?`Squadra di <b>${esc(nome(S.capo))}</b> · ${S.persone.length} persone`:'';
+  const l=[...S.persone].sort((a,b)=>(vuoti(b).length>0)-(vuoti(a).length>0)||sortP(a,b));
+  $('#main').innerHTML=banner()+(S.nuovo?nuovoCard():'')+'<h2>La tua squadra</h2>'+
+    (l.length?l.map(card).join(''):'<p class="empty">Nessuno ancora: aggiungi il primo PR.</p>');
+  $('#bar').hidden=false;
+  const a=$('.pers.open input');if(a&&S.nuovo)a.focus()}
+
+function leggi(){const g=k=>{const e=$('#f-'+k);return e?e.value.trim():''};
+  return {nome:g('nome'),cognome:g('cognome'),nascita:g('nascita'),tel:g('tel'),scuola:g('scuola'),zona:g('zona'),parent:g('parent')||null}}
+
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button,[data-open]');if(!t)return;
+  if(t.id==='add'){S.nuovo=true;S.aperto=null;render();scrollTo({top:0,behavior:'smooth'});return}
+  if(t.id==='annulla'){S.nuovo=false;render();return}
+  if(t.dataset.open){S.nuovo=false;S.aperto=S.aperto===t.dataset.open?null:t.dataset.open;render();return}
+  if(t.id==='salva'){
+    const d=leggi(),m=$('#msg');
+    if(!d.nome&&!d.cognome){m.textContent='Serve almeno il nome o il cognome.';return}
+    t.disabled=true;
+    try{const id=S.nuovo?null:S.aperto;
+      await api(id?'PUT':'POST','/persone'+(id?'/'+id:''),d);
+      S.nuovo=false;S.aperto=null;await carica();toast('Salvato')}
+    catch(er){m.textContent=er.message;t.disabled=false}
+    return}
+  if(t.id==='elimina'){
+    if(!t.dataset.c){t.dataset.c=1;t.textContent='Confermi?';$('#msg').textContent='Lo togli dalla squadra. I risultati già inseriti nelle serate restano.';return}
+    t.disabled=true;
+    try{await api('DELETE','/persone/'+S.aperto);S.aperto=null;await carica();toast('Eliminato')}
+    catch(er){$('#msg').textContent=er.message;t.disabled=false}}
+});
+
+async function carica(){
+  try{const d=await api('GET','');
+    if(d.ver&&d.ver!==VER){location.reload();return}
+    S.capo=d.capo;S.persone=d.persone;S.manca=d.manca;render()}
+  catch(er){$('#main').innerHTML=`<div class="banner"><h3>Non riesco ad aprire</h3><p>${esc(er.message)}. Se il link non funziona più, chiedine uno nuovo a Meth.</p></div>`;$('#hp').textContent=''}}
+carica();
+</script>
+</body>
+</html>
