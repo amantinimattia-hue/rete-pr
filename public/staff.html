@@ -24,7 +24,11 @@ header h1{margin:0;font:900 21px/1 Unbounded,"DM Sans",sans-serif;text-transform
 .dot{display:inline-block;width:.35em;height:.35em;border-radius:50%;background:#FF5A1F;margin:0 .09em}
 header p{margin:5px 0 0;font-size:13px;color:#C9C0B5}
 main{padding:14px max(4vw,14px) 90px}
-h2{font:800 19px/1.2 Unbounded,"DM Sans",sans-serif;margin:22px 0 10px}
+h2{font:800 18px/1.3 Unbounded,"DM Sans",sans-serif;margin:24px 0 9px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.grp+.grp h2{border-top:1px solid var(--line);padding-top:20px}
+.gc{font:700 12px/1 "DM Sans",sans-serif;background:var(--warnl);color:#141414;border-radius:99px;padding:5px 10px;letter-spacing:.01em}
+.gc.done{background:none;border:1px solid var(--line);color:var(--ok)}
+h2 .note{font:500 13px/1 "DM Sans",sans-serif}
 button{font:inherit;font-weight:700;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:44px;padding:0 14px;cursor:pointer}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 button.danger{background:none;border-color:var(--acct);color:var(--acct)}
@@ -135,11 +139,28 @@ function nuovoCard(){
   <p class="msg" id="msg"></p>
   <div class="azioni"><button class="pri" id="salva">Aggiungi</button><span class="sp"></span><button id="annulla">Annulla</button></div></div></div>`}
 
+// La squadra è divisa per capo: così si vede subito che ci sono anche i PR dei propri capi PR.
+function gruppi(){
+  const capi=S.persone.filter(p=>p.ruolo!=='pr').sort(sortP);
+  const g=capi.map(c=>({capo:c,gente:S.persone.filter(p=>p.parent===c.id&&p.ruolo==='pr')}));
+  const orfani=S.persone.filter(p=>p.ruolo==='pr'&&!capi.some(c=>c.id===p.parent));
+  if(orfani.length)g.push({capo:null,gente:orfani});
+  return g}
+const ordina=l=>[...l].sort((a,b)=>(vuoti(b).length>0)-(vuoti(a).length>0)||sortP(a,b));
+
 function render(){
   $('#hp').innerHTML=S.capo?`Squadra di <b>${esc(nome(S.capo))}</b> · ${S.persone.length} persone`:'';
-  const l=[...S.persone].sort((a,b)=>(vuoti(b).length>0)-(vuoti(a).length>0)||sortP(a,b));
-  $('#main').innerHTML=banner()+(S.nuovo?nuovoCard():'')+'<h2>La tua squadra</h2>'+
-    (l.length?l.map(card).join(''):'<p class="empty">Nessuno ancora: aggiungi il primo PR.</p>');
+  const blocchi=gruppi().map(({capo,gente})=>{
+    if(!capo&&!gente.length)return '';
+    const buchi=[capo,...gente].filter(Boolean).reduce((a,p)=>a+vuoti(p).length,0);
+    const tit=capo?(capo.id===S.capo.id?'Te e i tuoi PR diretti':esc(nome(capo))+' e i suoi PR'):'Senza capo';
+    const sotto=capo&&capo.id!==S.capo.id?`<span class="note"> · ${RUOLI[capo.ruolo]}</span>`:'';
+    return `<div class="grp"><h2>${tit}${sotto}
+      <span class="gc ${buchi?'':'done'}">${buchi?buchi+' da completare':'completo ✓'}</span></h2>
+      ${(capo?[capo,...ordina(gente)]:ordina(gente)).map(card).join('')}
+      ${capo&&!gente.length?'<p class="empty">Nessun PR collegato.</p>':''}</div>`}).join('');
+  $('#main').innerHTML=banner()+(S.nuovo?nuovoCard():'')+
+    (S.persone.length?blocchi:'<p class="empty">Nessuno ancora: aggiungi il primo PR.</p>');
   $('#bar').hidden=false;
   const a=$('.pers.open input');if(a&&S.nuovo)a.focus()}
 
