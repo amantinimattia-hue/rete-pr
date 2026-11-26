@@ -231,14 +231,15 @@ const ro=new ResizeObserver(draw);ro.observe($('#main'));
 /* ---------- archivio ---------- */
 function filtrati(){const q=norm(S.q);return S.pr.filter(p=>(!S.fR||p.ruolo===S.fR)&&(!S.fS||p.scuola===S.fS)&&(!S.fZ||p.zona===S.fZ)&&
   (!q||norm([p.nome,p.cognome,p.scuola,p.zona,p.tel,p.note].join(' ')).includes(q))).map(p=>({p,v:vend(p.id,S.ser)})).sort((A,B)=>{const {k,d}=S.so,a=A.p,b=B.p;
-  const key=x=>k==='nome'?nome(x.p):k==='ruolo'?ORD[x.p.ruolo]:k==='parent'?(x.p.parent?nome(byId(x.p.parent)):''):k==='b'||k==='t'?x.v[k]:(x.p[k]??'');
+  const key=x=>k==='nome'?nome(x.p):k==='ruolo'?ORD[x.p.ruolo]:k==='parent'?(x.p.parent?nome(byId(x.p.parent)):''):k==='b'||k==='t'?x.v[k]:k==='nascita'?(x.p.nascita||(x.p.anno?x.p.anno+'-00-00':'')):(x.p[k]??'');
   const ka=key(A),kb=key(B);let c=typeof ka==='number'&&typeof kb==='number'?ka-kb:String(ka).localeCompare(String(kb),'it',{numeric:true});
   if((ka===''||ka==null)!==(kb===''||kb==null))return ka===''||ka==null?1:-1;return c*d||sortNome(a,b)})}
 function righe(){const l=filtrati();
   if(!l.length)return `<tr><td colspan="9"><p class="empty">${S.pr.length?'Nessuno corrisponde ai filtri.':'Archivio vuoto: aggiungi il primo PR.'}</p></td></tr>`;
   return l.map(({p,v})=>`<tr><td><button class="link" data-ed="${p.id}" title="Apri l'anagrafica">${esc(nome(p))}</button>${p.note?`<span class="note" title="${esc(p.note)}">${esc(p.note)}</span>`:''}</td>
   <td><span class="tag ${p.ruolo}">${RUOLI[p.ruolo]||'PR'}</span></td><td>${p.parent?esc(nome(byId(p.parent))):`<span class="note">${p.ruolo==='staff'?'Vertice':'Singolo'}</span>`}</td>
-  <td class="n">${esc(p.anno||'')}</td><td>${esc(p.scuola||'')}</td><td>${esc(p.zona||'')}</td><td class="n">${esc(p.tel||'')}</td><td class="n">${v.b||''}</td><td class="n">${v.t||''}</td></tr>`).join('')}
+  <td class="n">${p.nascita?dataIt(p.nascita):p.anno?`<span class="note" title="Manca la data esatta">${p.anno}</span>`:''}</td><td>${esc(p.scuola||'')}</td><td>${esc(p.zona||'')}</td><td class="n">${esc(p.tel||'')}</td><td class="n">${v.b||''}</td><td class="n">${v.t||''}</td></tr>`).join('')}
+const dataIt=d=>{const[a,m,g]=String(d).split('-');return `${g}/${m}/${a}`};
 const opts=(f)=>[...new Set(S.pr.map(p=>String(p[f]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'it'));
 function vArchivio(){const c=k=>S.pr.filter(p=>p.ruolo===k).length;
   const sel=(id,cur,list,lab)=>`<label>${lab}<select id="${id}"><option value="">Tutte</option>${list.map(v=>`<option ${v===cur?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`;
@@ -250,7 +251,7 @@ function vArchivio(){const c=k=>S.pr.filter(p=>p.ruolo===k).length;
   <div class="filters"><label>Cerca<input id="q" type="search" value="${esc(S.q)}" placeholder="Nome, scuola, telefono, note…"></label>
   <label>Ruolo<select id="fR"><option value="">Tutti</option>${Object.entries(RUOLI).map(([k,v])=>`<option value="${k}" ${k===S.fR?'selected':''}>${v}</option>`).join('')}</select></label>
   ${sel('fS',S.fS,opts('scuola'),'Scuola')}${sel('fZ',S.fZ,opts('zona'),'Zona')}<button id="clr">Azzera</button></div>
-  <p class="note" id="cnt" style="margin:0 0 6px"></p><div class="tbl"><table class="stack"><thead><tr>${[['nome','Nome'],['ruolo','Ruolo'],['parent','Superiore'],['anno','Anno','n'],['scuola','Scuola'],['zona','Zona'],['tel','Telefono','n'],['b','Biglietti','n'],['t','Tavoli','n']].map(([k,t,c])=>`<th data-so="${k}" class="${c||''} ${S.so.k===k?'on':''}">${t}${S.so.k===k?(S.so.d>0?' ↑':' ↓'):''}</th>`).join('')}</tr></thead><tbody id="tb">${righe()}</tbody></table></div>`}
+  <p class="note" id="cnt" style="margin:0 0 6px"></p><div class="tbl"><table class="stack"><thead><tr>${[['nome','Nome'],['ruolo','Ruolo'],['parent','Superiore'],['nascita','Nascita','n'],['scuola','Scuola'],['zona','Zona'],['tel','Telefono','n'],['b','Biglietti','n'],['t','Tavoli','n']].map(([k,t,c])=>`<th data-so="${k}" class="${c||''} ${S.so.k===k?'on':''}">${t}${S.so.k===k?(S.so.d>0?' ↑':' ↓'):''}</th>`).join('')}</tr></thead><tbody id="tb">${righe()}</tbody></table></div>`}
 
 /* ---------- struttura ---------- */
 function vStruttura(){const ser=S.ser,T=id=>`<span class="tot">personali ${BT(vend(id,ser))}</span>`;
